@@ -74,7 +74,7 @@ Flip one switch (USE_MOCK) to move the whole app between demo and live. Nothing 
 
 ## The complete workflow
 
-1. First time setup. Open the panel. If no profile exists, onboarding appears. Paste your existing resume, and the app structures it into the Master Data format, then you review and edit the details and save.
+1. Sign up or log in. Open the panel and create an account (or log in). Accounts use Supabase Auth, and all your data is scoped to your account. Then, if no profile exists yet, onboarding appears: paste your existing resume, the app structures it into the Master Data format, and you review, edit, and save it.
 2. On a job posting. Go to a careers or job page and open the panel.
 3. Extract. Click "Extract JD from this page". A content script reads the page (it tries known job board containers and falls back to the full text), then the app cleans it into company, position, and job text. You confirm or edit these, so extraction is never trusted blindly.
 4. Generate. The app builds a resume from your Master Data tailored to the job (it picks and rewrites the most relevant experience and projects), and an ATS score plus a matched and missing keyword breakdown is computed.
@@ -264,7 +264,6 @@ Notion tracker: title (for example "Company, Position"), Company, Position (text
 
 ## Roadmap
 
-- Supabase Auth for multiple users (replace the single demo user).
 - Editing Master Data after onboarding (a full experience and projects editor).
 - An optional AI based ATS score alongside the rules based one.
 - Status updates (Applied, Interview, Offer) synced back from Notion.

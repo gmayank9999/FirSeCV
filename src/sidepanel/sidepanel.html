@@ -15,11 +15,13 @@
       <div class="app-header__actions">
         <button id="nav-new" class="btn btn--ghost" type="button" hidden>New</button>
         <button id="nav-history" class="btn btn--ghost" type="button" hidden>History</button>
+        <button id="logout" class="btn btn--ghost" type="button" hidden>Log out</button>
         <button id="theme-toggle" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle theme">◐</button>
       </div>
     </header>
 
     <main class="app-main">
+      <section class="screen" data-screen="auth" hidden></section>
       <section class="screen" data-screen="onboarding" hidden></section>
       <section class="screen" data-screen="extract" hidden></section>
       <section class="screen" data-screen="review" hidden></section>

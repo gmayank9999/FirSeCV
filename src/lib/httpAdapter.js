@@ -1,18 +1,36 @@
 // Real backend adapter. Same surface as mockAdapter - talk to the Express API.
 // Enable by flipping USE_MOCK in api.js once the backend is running.
 
+import { getSession } from "./store.js";
+
 const BASE = "http://localhost:3000";
 
-async function req(path, { method = "GET", body } = {}) {
+async function req(path, { method = "GET", body, auth = true } = {}) {
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (auth) {
+    const session = await getSession();
+    if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
+  }
   const res = await fetch(BASE + path, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}`);
+  if (!res.ok) {
+    let message = `${method} ${path} -> ${res.status}`;
+    try { message = (await res.json()).message || message; } catch { /* ignore */ }
+    throw new Error(message);
+  }
   return res.json();
 }
+
+// ---- auth ----
+export const signup = (email, password) =>
+  req("/api/auth/signup", { method: "POST", body: { email, password }, auth: false });
+export const login = (email, password) =>
+  req("/api/auth/login", { method: "POST", body: { email, password }, auth: false });
 
 export const getMasterProfile = () => req("/api/master-profile");
 export const saveMasterProfile = (input) => req("/api/master-profile", { method: "POST", body: input });

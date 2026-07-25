@@ -136,6 +136,16 @@ function scoreResume(structuredContent, jdText) {
 
 // ---- public API ----------------------------------------------------------
 
+// ---- auth (mock: accepts anything, returns a fake session) ----
+export async function login(email) {
+  await delay(300, 600);
+  return { accessToken: "mock-token", user: { id: "mock-user", email } };
+}
+export async function signup(email) {
+  await delay(300, 600);
+  return { accessToken: "mock-token", user: { id: "mock-user", email }, needsConfirmation: false };
+}
+
 export async function getMasterProfile() {
   return getProfile();
 }

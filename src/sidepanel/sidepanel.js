@@ -1,10 +1,10 @@
-// Side panel entry point: theme, router, and boot logic.
+// Side panel entry point: theme, router, auth, and boot logic.
 // Each screen is a <section data-screen="NAME"> toggled via `hidden`.
 
-import { getProfile, getTheme, setTheme } from "../lib/store.js";
-import { renderOnboarding, renderExtract, revealNav } from "../ui/screens.js";
+import { getProfile, getTheme, setTheme, getSession, clearSession } from "../lib/store.js";
+import { renderAuth, renderOnboarding, renderExtract, revealNav } from "../ui/screens.js";
 
-const SCREENS = ["onboarding", "extract", "review", "history"];
+const SCREENS = ["auth", "onboarding", "extract", "review", "history"];
 
 export function showScreen(name) {
   for (const s of SCREENS) {
@@ -36,9 +36,15 @@ async function initTheme() {
   });
 }
 
-// ---- boot ----
-async function init() {
-  await initTheme();
+// ---- auth-aware chrome (logout button) ----
+function setLoggedInChrome(on) {
+  const logout = document.getElementById("logout");
+  if (logout) logout.hidden = !on;
+}
+
+// Called after a successful login/signup: decide onboarding vs main app.
+export async function afterLogin() {
+  setLoggedInChrome(true);
   const profile = await getProfile();
   if (!profile) {
     renderOnboarding();
@@ -47,6 +53,31 @@ async function init() {
     renderExtract();
     showScreen("extract");
     revealNav();
+  }
+}
+
+function initLogout() {
+  document.getElementById("logout")?.addEventListener("click", async () => {
+    await clearSession();
+    setLoggedInChrome(false);
+    document.getElementById("nav-new").hidden = true;
+    document.getElementById("nav-history").hidden = true;
+    renderAuth();
+    showScreen("auth");
+  });
+}
+
+// ---- boot ----
+async function init() {
+  await initTheme();
+  initLogout();
+  const session = await getSession();
+  if (!session?.accessToken) {
+    setLoggedInChrome(false);
+    renderAuth();
+    showScreen("auth");
+  } else {
+    await afterLogin();
   }
 }
 

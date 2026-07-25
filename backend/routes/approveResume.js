@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { DEMO_USER } from "../config.js";
 import * as latex from "../lib/latexCompile.js";
 import * as db from "../lib/supabase.js";
 import * as notion from "../lib/notion.js";
@@ -19,10 +18,10 @@ approveResume.post("/", async (req, res, next) => {
     const latexSource = await latex.populateTemplate(structuredContent);
     const pdfBytes = await latex.compileToPdf(latexSource); // null if no TeX engine
 
-    const upload = await db.uploadResume(DEMO_USER, { company, position, pdfBytes });
+    const upload = await db.uploadResume(req.userId, { company, position, pdfBytes });
     const appliedAt = new Date().toISOString();
     const row = await db.insertResumeVersion({
-      user_id: DEMO_USER,
+      user_id: req.userId,
       company, position, jd_text: jdText, ats_score: atsScore,
       ats_breakdown: atsBreakdown, structured_content: structuredContent,
       pdf_storage_path: upload.path, resume_url: upload.url, latex_source: latexSource,

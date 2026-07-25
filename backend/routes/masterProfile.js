@@ -1,14 +1,13 @@
 import { Router } from "express";
-import { DEMO_USER } from "../config.js";
 import * as gemini from "../lib/gemini.js";
 import * as db from "../lib/supabase.js";
 
 export const masterProfile = Router();
 
 // GET /api/master-profile - current profile or 404 (triggers onboarding).
-masterProfile.get("/", async (_req, res, next) => {
+masterProfile.get("/", async (req, res, next) => {
   try {
-    const profile = await db.getProfile(DEMO_USER);
+    const profile = await db.getProfile(req.userId);
     if (!profile) return res.status(404).json({ error: "no_profile" });
     res.json(profile);
   } catch (e) { next(e); }
@@ -19,7 +18,7 @@ masterProfile.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
     const profile = body.resumeText ? await gemini.parseResume(body.resumeText) : body;
-    const saved = await db.saveProfile(DEMO_USER, profile);
+    const saved = await db.saveProfile(req.userId, profile);
     res.json(saved);
   } catch (e) { next(e); }
 });
@@ -27,7 +26,7 @@ masterProfile.post("/", async (req, res, next) => {
 // PATCH /api/master-profile - merge partial fields.
 masterProfile.patch("/", async (req, res, next) => {
   try {
-    const saved = await db.saveProfile(DEMO_USER, req.body || {});
+    const saved = await db.saveProfile(req.userId, req.body || {});
     res.json(saved);
   } catch (e) { next(e); }
 });

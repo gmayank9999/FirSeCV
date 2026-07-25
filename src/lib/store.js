@@ -29,3 +29,9 @@ export const addHistory = async (row) => {
 // ---- theme ("light" | "dark" | "system") ----
 export const getTheme = () => get("theme").then((v) => v ?? "system");
 export const setTheme = (t) => set("theme", t);
+
+// ---- auth session ({ accessToken, user: { id, email } }) ----
+export const getSession = () => get("session").then((v) => v ?? null);
+export const setSession = (s) => set("session", s);
+export const clearSession = () =>
+  new Promise((r) => S.remove(["session", "masterProfile", "resumeHistory"], r));

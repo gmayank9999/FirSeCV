@@ -9,6 +9,8 @@ import * as http from "./httpAdapter.js";
 const USE_MOCK = false;
 const adapter = USE_MOCK ? mock : http;
 
+export const login = (...a) => adapter.login(...a);
+export const signup = (...a) => adapter.signup(...a);
 export const getMasterProfile = (...a) => adapter.getMasterProfile(...a);
 export const saveMasterProfile = (...a) => adapter.saveMasterProfile(...a);
 export const updateMasterProfile = (...a) => adapter.updateMasterProfile(...a);

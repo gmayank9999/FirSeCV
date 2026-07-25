@@ -2,12 +2,77 @@
 // Screens talk to the backend only through api.js and to state through store.js.
 
 import * as api from "../lib/api.js";
-import { store, setProfile } from "../lib/store.js";
+import { store, setProfile, setSession, getSession } from "../lib/store.js";
 import { scrapePage } from "../lib/extract.js";
 import { toast, spinnerButton, atsRing, keywordChips, skeleton, el } from "./components.js";
-import { showScreen } from "../sidepanel/sidepanel.js";
+import { showScreen, afterLogin } from "../sidepanel/sidepanel.js";
 
 const mount = (name) => document.querySelector(`[data-screen="${name}"].screen`);
+
+// ===================================================================== auth
+
+export function renderAuth() {
+  const root = mount("auth");
+  root.replaceChildren();
+  let mode = "login"; // or "signup"
+
+  const email = el("input", { type: "email", class: "input", placeholder: "you@example.com" });
+  const password = el("input", { type: "password", class: "input", placeholder: "Password" });
+  const submit = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Log in");
+  const toggle = el("button", { class: "link-btn" }, "New here? Create an account");
+  const title = el("h1", { class: "title" }, "Welcome back");
+  const subtitle = el("p", { class: "subtitle" }, "Log in to your FirSeCV account.");
+
+  const setMode = (m) => {
+    mode = m;
+    title.textContent = m === "login" ? "Welcome back" : "Create your account";
+    subtitle.textContent = m === "login" ? "Log in to your FirSeCV account." : "Sign up to save your resumes and tracker.";
+    submit.textContent = m === "login" ? "Log in" : "Sign up";
+    toggle.textContent = m === "login" ? "New here? Create an account" : "Have an account? Log in";
+  };
+
+  toggle.addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
+
+  const doAuth = async () => {
+    const e = email.value.trim();
+    const p = password.value;
+    if (!e || !p) return toast("Enter your email and password", "error");
+    if (p.length < 6) return toast("Password must be at least 6 characters", "error");
+    spinnerButton(submit, true);
+    try {
+      const result = mode === "login" ? await api.login(e, p) : await api.signup(e, p);
+      if (!result.accessToken) {
+        // Signup with email confirmation enabled: no session yet.
+        toast("Account created. Check your email to confirm, then log in.", "success");
+        setMode("login");
+        return;
+      }
+      await setSession({ accessToken: result.accessToken, user: result.user });
+      toast(mode === "login" ? "Logged in" : "Account created", "success");
+      await afterLogin();
+    } catch (err) {
+      toast(err.message || "Authentication failed", "error");
+    } finally {
+      spinnerButton(submit, false);
+    }
+  };
+
+  submit.addEventListener("click", doAuth);
+  password.addEventListener("keydown", (ev) => ev.key === "Enter" && doAuth());
+
+  root.appendChild(el("div", { class: "stack", style: "margin-top:8px" }, [
+    el("div", { class: "brand", style: "justify-content:center" }, [
+      el("span", { class: "brand__mark", style: "width:40px;height:40px;font-size:16px" }, "FS"),
+    ]),
+    el("div", { class: "stack", style: "text-align:center;gap:2px" }, [title, subtitle]),
+    el("div", { class: "card stack" }, [
+      el("div", { class: "field" }, [el("label", {}, "Email"), email]),
+      el("div", { class: "field" }, [el("label", {}, "Password"), password]),
+      submit,
+      el("div", { class: "row", style: "justify-content:center" }, [toggle]),
+    ]),
+  ]));
+}
 
 // ================================================================ onboarding
 
@@ -358,7 +423,12 @@ export function renderHistory() {
     historyTimer = setTimeout(() => load(search.value.trim()), 250);
   });
 
-  root.appendChild(el("h1", { class: "title" }, "Application history"));
+  const header = el("h1", { class: "title" }, "Application history");
+  getSession().then(s => {
+    if (s?.user?.email) header.textContent = `History (${s.user.email})`;
+  });
+
+  root.appendChild(header);
   root.appendChild(el("div", { class: "field" }, [search]));
   root.appendChild(list);
   load();
