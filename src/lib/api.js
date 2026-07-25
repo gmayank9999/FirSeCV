@@ -2,10 +2,11 @@
 // from the mock (this build) to a real HTTP backend later — nothing else changes.
 
 import * as mock from "./mockAdapter.js";
-// import * as http from "./httpAdapter.js"; // wired in a later session
+import * as http from "./httpAdapter.js";
 
+// Flip to false to run against the Express backend (backend/ must be running).
 const USE_MOCK = true;
-const adapter = USE_MOCK ? mock : mock; // replace second `mock` with `http` later
+const adapter = USE_MOCK ? mock : http;
 
 export const getMasterProfile = (...a) => adapter.getMasterProfile(...a);
 export const saveMasterProfile = (...a) => adapter.saveMasterProfile(...a);

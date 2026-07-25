@@ -17,7 +17,18 @@ It's an end-to-end workflow tool, not a prompt.
 
 ## Status
 
-This build is the **complete extension UI running against a mock backend**, so the whole flow is clickable and demoable today. The mock lives behind a single seam (`src/lib/api.js`) and swaps for a real backend without touching any screen. Still to come in later work: a Node/Express backend, Google Gemini for parsing/generation/scoring, a LaTeX→PDF pipeline, and Supabase + Notion for storage and application tracking.
+The **complete extension UI** plus an **Express backend** are in place, both fully runnable today. The extension defaults to an in-panel mock (`src/lib/api.js`, `USE_MOCK = true`) so it demos with zero setup; flip that flag to run against the backend instead. The backend's integrations (Gemini, Supabase, Notion, LaTeX) each run in a local mock mode until their keys/engine are provided, so the whole pipeline works before any credential exists. Still to wire up: the real Gemini/Supabase/Notion calls and a TeX engine for PDF output — the seams and stubs are already there.
+
+## Run the backend (optional)
+
+```
+cd backend
+npm install
+cp .env.example .env    # optional — fill in keys to go from mock to live
+npm start               # http://localhost:3000  (GET /health shows integration modes)
+```
+
+Then set `USE_MOCK = false` in [src/lib/api.js](src/lib/api.js) and reload the extension to use the live server.
 
 ## Install (unpacked)
 

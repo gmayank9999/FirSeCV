@@ -1,0 +1,38 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.7in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+\usepackage{parskip}
+
+\pagestyle{empty}
+\setlist[itemize]{leftmargin=1.4em, itemsep=1pt, topsep=2pt}
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{6pt}
+
+% \resumeEntry{title}{right-aligned meta}{dates}
+\newcommand{\resumeEntry}[3]{%
+  \noindent\textbf{#1}\hfill{\small #2}\ifx\relax#3\relax\else\quad{\small\itshape #3}\fi\par%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{ {{FULL_NAME}} }}\\[2pt]
+  {\small {{CONTACT_LINE}} }
+\end{center}
+
+\section{Experience}
+{{EXPERIENCE_BLOCK}}
+
+\section{Projects}
+{{PROJECTS_BLOCK}}
+
+\section{Skills}
+{{SKILLS_BLOCK}}
+
+\section{Education}
+{{EDUCATION_BLOCK}}
+
+\end{document}
