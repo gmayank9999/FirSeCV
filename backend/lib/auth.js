@@ -13,10 +13,15 @@ function readErr(data, status) {
 }
 
 export async function signUp(email, password) {
+  const redirectUrl = `http://localhost:${config.port}/api/auth/verified`;
   const res = await fetch(`${config.supabase.url}/auth/v1/signup`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+      options: { email_redirect_to: redirectUrl }
+    }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(readErr(data, res.status));

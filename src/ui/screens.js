@@ -62,7 +62,7 @@ export function renderAuth() {
 
   root.appendChild(el("div", { class: "stack", style: "margin-top:8px" }, [
     el("div", { class: "brand", style: "justify-content:center" }, [
-      el("span", { class: "brand__mark", style: "width:40px;height:40px;font-size:16px" }, "FS"),
+      el("img", { src: "../../assets/icons/icon128.png", alt: "FirSeCV Logo", style: "width:40px;height:40px;object-fit:contain" }),
     ]),
     el("div", { class: "stack", style: "text-align:center;gap:2px" }, [title, subtitle]),
     el("div", { class: "card stack" }, [
@@ -321,7 +321,7 @@ export function renderReview() {
 
   root.appendChild(el("div", { class: "row row--between" }, [
     el("h1", { class: "title" }, store.currentJd.position || "Resume preview"),
-    el("button", { class: "link-btn", onclick: () => showScreen("extract") }, "← Edit JD"),
+    el("button", { class: "link-btn", onclick: () => showScreen("extract") }, "Back to JD"),
   ]));
   root.appendChild(ats);
   root.appendChild(el("div", { class: "card stack" }, [el("div", { class: "section-label" }, "ATS notes"), notes]));
@@ -438,7 +438,6 @@ export function renderHistory() {
 function renderHistoryList(list, rows) {
   if (!rows.length) {
     list.replaceChildren(el("div", { class: "empty" }, [
-      el("div", { class: "empty__icon" }, "🗂️"),
       el("p", {}, "No applications yet. Approve a resume to track it here."),
     ]));
     return;
@@ -452,7 +451,7 @@ function renderHistoryList(list, rows) {
       ]),
       el("div", { class: "stack", style: "align-items:flex-end;gap:6px" }, [
         scoreBadge(r.atsScore),
-        el("span", { class: "link-btn" }, "Open →"),
+        el("span", { class: "link-btn" }, "Open"),
       ]),
     ]);
     card.addEventListener("click", () => renderResumeDetail(r));
@@ -478,7 +477,7 @@ function renderResumeDetail(r) {
   root.replaceChildren();
 
   root.appendChild(el("div", { class: "row row--between" }, [
-    el("button", { class: "link-btn", onclick: () => { renderHistory(); } }, "← History"),
+    el("button", { class: "link-btn", onclick: () => { renderHistory(); } }, "Back to History"),
     scoreBadge(r.atsScore),
   ]));
   root.appendChild(el("div", { class: "stack", style: "gap:2px" }, [
@@ -537,7 +536,7 @@ async function renderInterviewPrep(ctx, mountName, onBack) {
   const root = mount(mountName);
   root.replaceChildren(
     el("div", { class: "row row--between" }, [
-      el("button", { class: "link-btn", onclick: onBack }, "< Back"),
+      el("button", { class: "link-btn", onclick: onBack }, "Back"),
       el("span", { class: "section-label" }, "Interview prep"),
     ]),
     el("h1", { class: "title" }, "Preparing your interview prep..."),
@@ -555,7 +554,7 @@ async function renderInterviewPrep(ctx, mountName, onBack) {
 function renderPrepView(root, ctx, prep, onBack) {
   root.replaceChildren();
   root.appendChild(el("div", { class: "row row--between" }, [
-    el("button", { class: "link-btn", onclick: onBack }, "< Back"),
+    el("button", { class: "link-btn", onclick: onBack }, "Back"),
     el("span", { class: "section-label" }, "Interview prep"),
   ]));
   root.appendChild(el("div", { class: "stack", style: "gap:2px" }, [
