@@ -5,6 +5,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, writeFile, mkdtemp, readFile as read } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,15 @@ import { config } from "../config.js";
 
 const run = promisify(execFile);
 const TEMPLATE = fileURLToPath(new URL("../templates/template.tex", import.meta.url));
+const LOCAL_TECTONIC = fileURLToPath(new URL("../bin/tectonic.exe", import.meta.url));
+
+// Prefer the bundled tectonic binary; otherwise use whatever is on PATH.
+function resolveEngine() {
+  if (config.latex.engine !== "pdflatex" && existsSync(LOCAL_TECTONIC)) {
+    return { cmd: LOCAL_TECTONIC, kind: "tectonic" };
+  }
+  return { cmd: config.latex.engine, kind: config.latex.engine.includes("pdflatex") ? "pdflatex" : "tectonic" };
+}
 
 const esc = (s = "") =>
   String(s).replace(/([&%$#_{}])/g, "\\$1").replace(/~/g, "\\textasciitilde{}").replace(/\^/g, "\\textasciicircum{}");
@@ -50,19 +60,20 @@ export async function populateTemplate(sc) {
 
 /** Compile .tex to a PDF Buffer. Returns null if no engine is available. */
 export async function compileToPdf(tex) {
-  const engine = config.latex.engine;
+  const { cmd, kind } = resolveEngine();
   try {
     const dir = await mkdtemp(join(tmpdir(), "firsecv-"));
     const texPath = join(dir, "resume.tex");
     await writeFile(texPath, tex, "utf8");
-    if (engine === "tectonic") {
-      await run("tectonic", ["--outdir", dir, texPath], { timeout: 30000 });
+    if (kind === "tectonic") {
+      await run(cmd, ["--outdir", dir, "--keep-logs", texPath], { timeout: 60000 });
     } else {
-      await run("pdflatex", ["-interaction=nonstopmode", "-output-directory", dir, texPath], { timeout: 30000 });
+      await run(cmd, ["-interaction=nonstopmode", "-output-directory", dir, texPath], { timeout: 60000 });
     }
     return await read(join(dir, "resume.pdf"));
   } catch (err) {
     // Engine missing or compile failed — caller stores the .tex source instead.
+    console.warn("[FirSeCV] LaTeX compile failed:", err.message);
     return null;
   }
 }

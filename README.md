@@ -17,18 +17,23 @@ It's an end-to-end workflow tool, not a prompt.
 
 ## Status
 
-The **complete extension UI** plus an **Express backend** are in place, both fully runnable today. The extension defaults to an in-panel mock (`src/lib/api.js`, `USE_MOCK = true`) so it demos with zero setup; flip that flag to run against the backend instead. The backend's integrations (Gemini, Supabase, Notion, LaTeX) each run in a local mock mode until their keys/engine are provided, so the whole pipeline works before any credential exists. Still to wire up: the real Gemini/Supabase/Notion calls and a TeX engine for PDF output — the seams and stubs are already there.
+**Fully working, end to end, with real integrations:** Google Gemini (résumé parsing, JD extraction, tailored generation), a real LaTeX→PDF pipeline (bundled `tectonic`), Supabase (Postgres + Storage), and Notion (application tracker). Each integration still falls back to a local mock when its key is absent, and Gemini falls back to a local generator if it's rate-limited — so the app never breaks. The extension talks to the backend by default (`src/lib/api.js`, `USE_MOCK = false`); set it to `true` to demo the UI standalone.
 
-## Run the backend (optional)
+## Setup
 
 ```
 cd backend
 npm install
-cp .env.example .env    # optional — fill in keys to go from mock to live
-npm start               # http://localhost:3000  (GET /health shows integration modes)
+cp .env.example .env       # fill in GEMINI_API_KEY, SUPABASE_*, NOTION_* (see .env.example)
 ```
 
-Then set `USE_MOCK = false` in [src/lib/api.js](src/lib/api.js) and reload the extension to use the live server.
+Then, one time in your Supabase project's **SQL Editor**, run [backend/db/schema.sql](backend/db/schema.sql) to create the two tables. The storage bucket is created automatically on first run. Your Notion database needs a title property plus **Company, Position, Date Applied, ATS Score, Resume Link, Status** (the code adapts to your exact property names/types).
+
+```
+npm start                  # http://localhost:3000  — GET /health shows live/mock per integration
+```
+
+Load the extension unpacked (see below) and use it — it calls the running backend. On first run the LaTeX engine downloads its package bundle once (~1–2 min), then compiles are a few seconds.
 
 ## Install (unpacked)
 

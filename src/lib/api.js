@@ -4,8 +4,9 @@
 import * as mock from "./mockAdapter.js";
 import * as http from "./httpAdapter.js";
 
-// Flip to false to run against the Express backend (backend/ must be running).
-const USE_MOCK = true;
+// Live backend by default (backend/ must be running on http://localhost:3000).
+// Flip to true to demo the extension standalone with the in-panel mock.
+const USE_MOCK = false;
 const adapter = USE_MOCK ? mock : http;
 
 export const getMasterProfile = (...a) => adapter.getMasterProfile(...a);

@@ -7,8 +7,9 @@ export async function createTrackerRow({ company, position, atsScore, resumeUrl,
   if (!live.notion) {
     return { notionPageId: "mock_notion_" + Date.now().toString(36) };
   }
-  // Real Notion call. Property names must match the tracker DB (plan §2.4);
-  // note select/date/url each need their typed shape, not a bare string.
+  // Property names/types match the "Job Applications" DB: title is "Name",
+  // Company/Position are rich_text, plus date / number / url / select.
+  const title = [company, position].filter(Boolean).join(" — ") || "Application";
   const res = await fetch("https://api.notion.com/v1/pages", {
     method: "POST",
     headers: {
@@ -19,11 +20,12 @@ export async function createTrackerRow({ company, position, atsScore, resumeUrl,
     body: JSON.stringify({
       parent: { database_id: config.notion.databaseId },
       properties: {
-        Company: { title: [{ text: { content: company || "—" } }] },
+        Name: { title: [{ text: { content: title } }] },
+        Company: { rich_text: [{ text: { content: company || "" } }] },
         Position: { rich_text: [{ text: { content: position || "" } }] },
         "Date Applied": { date: { start: appliedAt || new Date().toISOString() } },
         "ATS Score": { number: Number(atsScore) || 0 },
-        "Resume Link": { url: resumeUrl || null },
+        "Resume Link": resumeUrl ? { url: resumeUrl } : { url: null },
         Status: { select: { name: "Applied" } },
       },
     }),

@@ -5,9 +5,17 @@ import "dotenv/config";
 
 export const config = {
   port: Number(process.env.PORT) || 3000,
-  gemini: { key: process.env.GEMINI_API_KEY || "" },
+  gemini: {
+    key: process.env.GEMINI_API_KEY || "",
+    model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest",
+  },
   supabase: {
-    url: process.env.SUPABASE_URL || "",
+    // Accept either the base project URL or a pasted REST/storage endpoint —
+    // normalize down to the base ("https://<ref>.supabase.co").
+    url: (process.env.SUPABASE_URL || "")
+      .trim()
+      .replace(/\/+$/, "")
+      .replace(/\/(rest|storage)\/v1$/, ""),
     serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   },
   notion: {
