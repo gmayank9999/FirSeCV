@@ -243,7 +243,7 @@ export function renderReview() {
   approveBtn.addEventListener("click", async () => {
     spinnerButton(approveBtn, true);
     try {
-      await api.approveResume({ ...store.currentJd, atsScore, structuredContent: sc });
+      await api.approveResume({ ...store.currentJd, atsScore, atsBreakdown, structuredContent: sc });
       toast("Saved to your application tracker", "success");
       renderHistory();
       showScreen("history");
@@ -370,20 +370,117 @@ function renderHistoryList(list, rows) {
     return;
   }
   list.replaceChildren(...rows.map((r) => {
-    const date = new Date(r.appliedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-    const band = r.atsScore >= 80 ? "var(--success)" : r.atsScore >= 60 ? "var(--amber)" : "var(--danger)";
-    return el("div", { class: "card row row--between" }, [
+    const card = el("div", { class: "card row row--between", style: "cursor:pointer" }, [
       el("div", { class: "stack", style: "gap:2px" }, [
         el("strong", {}, r.company || "—"),
         el("span", { class: "subtitle" }, r.position || ""),
-        el("span", { class: "subtitle" }, date),
+        el("span", { class: "subtitle" }, formatDate(r.appliedAt)),
       ]),
       el("div", { class: "stack", style: "align-items:flex-end;gap:6px" }, [
-        el("span", { class: "badge", style: `background:color-mix(in srgb, ${band} 16%, transparent);color:${band}` }, `ATS ${r.atsScore}`),
-        el("a", { class: "link-btn", href: r.resumeUrl, target: "_blank" }, "Open"),
+        scoreBadge(r.atsScore),
+        el("span", { class: "link-btn" }, "Open →"),
       ]),
     ]);
+    card.addEventListener("click", () => renderResumeDetail(r));
+    return card;
   }));
+}
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function scoreBadge(score) {
+  const band = score >= 80 ? "var(--success)" : score >= 60 ? "var(--amber)" : "var(--danger)";
+  return el("span", { class: "badge", style: `background:color-mix(in srgb, ${band} 16%, transparent);color:${band}` },
+    score != null ? `ATS ${score}` : "ATS —");
+}
+
+// ------------------------------------------------------------- resume detail
+
+function renderResumeDetail(r) {
+  const root = mount("history");
+  root.replaceChildren();
+
+  root.appendChild(el("div", { class: "row row--between" }, [
+    el("button", { class: "link-btn", onclick: () => { renderHistory(); } }, "← History"),
+    scoreBadge(r.atsScore),
+  ]));
+  root.appendChild(el("div", { class: "stack", style: "gap:2px" }, [
+    el("h1", { class: "title" }, r.position || "Résumé"),
+    el("span", { class: "subtitle" }, [r.company, formatDate(r.appliedAt)].filter(Boolean).join("  •  ")),
+  ]));
+
+  // ATS breakdown (same as the approval screen), when it was stored
+  if (r.atsBreakdown) {
+    root.appendChild(el("div", { class: "card row", style: "align-items:flex-start" }, [
+      atsRing(r.atsScore),
+      el("div", { class: "stack", style: "flex:1" }, [
+        el("div", { class: "section-label" }, "Matched keywords"),
+        keywordChips(r.atsBreakdown.matched, "matched"),
+        el("div", { class: "section-label" }, "Missing keywords"),
+        keywordChips(r.atsBreakdown.missing, "missing"),
+      ]),
+    ]));
+    if (r.atsBreakdown.notes?.length) {
+      root.appendChild(el("div", { class: "card stack" }, [
+        el("div", { class: "section-label" }, "ATS notes"),
+        el("ul", { style: "margin:0;padding-left:18px;color:var(--muted);font-size:12px" },
+          r.atsBreakdown.notes.map((n) => el("li", {}, n))),
+      ]));
+    }
+  }
+
+  // Download / open actions
+  const actions = el("div", { class: "row" });
+  const dl = el("button", { class: "btn btn--primary btn--block btn--lg" }, r.hasPdf ? "Download PDF" : "Download résumé");
+  dl.addEventListener("click", () => downloadResume(r, dl));
+  actions.appendChild(dl);
+  if (r.hasPdf && /^https?:/.test(r.resumeUrl || "")) {
+    actions.appendChild(el("button", { class: "btn btn--lg", onclick: () => window.open(r.resumeUrl, "_blank") }, "Open in tab"));
+  }
+  root.appendChild(actions);
+
+  // Résumé preview exactly as approved
+  if (r.structuredContent) {
+    root.appendChild(resumePaper(r.structuredContent));
+  } else {
+    root.appendChild(el("div", { class: "card subtitle" }, "Preview wasn't stored for this earlier entry — the file is still downloadable above."));
+  }
+}
+
+async function downloadResume(r, btn) {
+  spinnerButton(btn, true);
+  try {
+    const base = `${slugify(r.company)}_${slugify(r.position)}`;
+    if (r.hasPdf && /^https?:/.test(r.resumeUrl || "")) {
+      const res = await fetch(r.resumeUrl);
+      if (!res.ok) throw new Error("fetch failed");
+      triggerDownload(await res.blob(), `${base}.pdf`);
+    } else if (r.latexSource) {
+      triggerDownload(new Blob([r.latexSource], { type: "application/x-tex" }), `${base}.tex`);
+    } else {
+      toast("No downloadable file stored for this résumé", "error");
+    }
+  } catch {
+    toast("Download failed", "error");
+  } finally {
+    spinnerButton(btn, false);
+  }
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = el("a", { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function slugify(s = "") {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "resume";
 }
 
 // ======================================================================= nav

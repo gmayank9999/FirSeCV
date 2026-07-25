@@ -11,7 +11,7 @@ export const approveResume = Router();
 // -> { id, resumeUrl, notionPageId, hasPdf }
 approveResume.post("/", async (req, res, next) => {
   try {
-    const { company, position, jdText = "", atsScore = 0, structuredContent } = req.body || {};
+    const { company, position, jdText = "", atsScore = 0, atsBreakdown = null, structuredContent } = req.body || {};
     if (!company || !position || !structuredContent) {
       return res.status(400).json({ error: "missing_fields" });
     }
@@ -24,7 +24,8 @@ approveResume.post("/", async (req, res, next) => {
     const row = await db.insertResumeVersion({
       user_id: DEMO_USER,
       company, position, jd_text: jdText, ats_score: atsScore,
-      pdf_storage_path: upload.path, latex_source: latexSource,
+      ats_breakdown: atsBreakdown, structured_content: structuredContent,
+      pdf_storage_path: upload.path, resume_url: upload.url, latex_source: latexSource,
       status: "approved", applied_at: appliedAt,
     });
 

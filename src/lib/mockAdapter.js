@@ -220,7 +220,7 @@ function scoreBullets(entry, term) {
   return (entry.bullets || []).filter((x) => x.toLowerCase().includes(term)).length;
 }
 
-export async function approveResume({ company, position, jdText, atsScore, structuredContent }) {
+export async function approveResume({ company, position, jdText, atsScore, atsBreakdown = null, structuredContent }) {
   await delay(500, 900);
   const id = "rv_" + Date.now().toString(36);
   const row = {
@@ -228,10 +228,12 @@ export async function approveResume({ company, position, jdText, atsScore, struc
     company,
     position,
     atsScore,
+    atsBreakdown,
     jdText,
     structuredContent,
     appliedAt: new Date().toISOString(),
     resumeUrl: `mock://resume/${id}`,
+    hasPdf: false,
   };
   await addHistory(row);
   return { id, resumeUrl: row.resumeUrl };

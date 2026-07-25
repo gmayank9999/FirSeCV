@@ -20,5 +20,20 @@ export const updateMasterProfile = (patch) => req("/api/master-profile", { metho
 export const extractJd = (payload) => req("/api/extract-jd", { method: "POST", body: payload });
 export const generateResume = (payload) => req("/api/generate-resume", { method: "POST", body: payload });
 export const approveResume = (payload) => req("/api/approve-resume", { method: "POST", body: payload });
-export const searchResumes = ({ company = "" } = {}) =>
-  req(`/api/search-resumes?company=${encodeURIComponent(company)}`);
+// The DB returns snake_case rows; normalize to the camelCase shape the UI uses.
+export const searchResumes = async ({ company = "" } = {}) => {
+  const rows = (await req(`/api/search-resumes?company=${encodeURIComponent(company)}`)) || [];
+  return rows.map((r) => ({
+    id: r.id,
+    company: r.company,
+    position: r.position,
+    jdText: r.jd_text,
+    atsScore: r.ats_score,
+    atsBreakdown: r.ats_breakdown,
+    structuredContent: r.structured_content,
+    resumeUrl: r.resume_url,
+    latexSource: r.latex_source,
+    hasPdf: Boolean(r.resume_url),
+    appliedAt: r.applied_at,
+  }));
+};
