@@ -8,7 +8,7 @@ build/
 *.log
 
 # Bundled binaries (downloaded, not committed)
-backend/bin/
+# backend/bin/
 
 # Environment / secrets
 .env
