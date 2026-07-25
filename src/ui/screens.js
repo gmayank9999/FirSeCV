@@ -266,6 +266,10 @@ export function renderReview() {
     chatLog,
     el("div", { class: "row" }, [chatInput, refineBtn]),
   ]));
+  root.appendChild(el("button", {
+    class: "btn btn--block btn--lg",
+    onclick: () => renderInterviewPrep({ ...store.currentJd, structuredContent: sc }, "review", renderReview),
+  }, "Interview prep for this role"));
   root.appendChild(approveBtn);
 }
 
@@ -442,12 +446,71 @@ function renderResumeDetail(r) {
   }
   root.appendChild(actions);
 
+  root.appendChild(el("button", {
+    class: "btn btn--block btn--lg",
+    onclick: () => renderInterviewPrep(
+      { company: r.company, position: r.position, jdText: r.jdText, structuredContent: r.structuredContent },
+      "history", () => renderResumeDetail(r)),
+  }, "Interview prep for this role"));
+
   // Resume preview exactly as approved
   if (r.structuredContent) {
     root.appendChild(resumePaper(r.structuredContent));
   } else {
     root.appendChild(el("div", { class: "card subtitle" }, "Preview wasn't stored for this earlier entry - the file is still downloadable above."));
   }
+}
+
+// -------------------------------------------------------- interview prep
+
+async function renderInterviewPrep(ctx, mountName, onBack) {
+  const root = mount(mountName);
+  root.replaceChildren(
+    el("div", { class: "row row--between" }, [
+      el("button", { class: "link-btn", onclick: onBack }, "< Back"),
+      el("span", { class: "section-label" }, "Interview prep"),
+    ]),
+    el("h1", { class: "title" }, "Preparing your interview prep..."),
+    el("div", { class: "card" }, [skeleton(6)]),
+  );
+  try {
+    const prep = await api.interviewPrep(ctx);
+    renderPrepView(root, ctx, prep, onBack);
+  } catch {
+    toast("Could not generate interview prep", "error");
+    onBack();
+  }
+}
+
+function renderPrepView(root, ctx, prep, onBack) {
+  root.replaceChildren();
+  root.appendChild(el("div", { class: "row row--between" }, [
+    el("button", { class: "link-btn", onclick: onBack }, "< Back"),
+    el("span", { class: "section-label" }, "Interview prep"),
+  ]));
+  root.appendChild(el("div", { class: "stack", style: "gap:2px" }, [
+    el("h1", { class: "title" }, "Interview prep"),
+    el("span", { class: "subtitle" }, [ctx.position, ctx.company].filter(Boolean).join(" at ")),
+  ]));
+
+  const qCard = (title, items) => !items?.length ? null : el("div", { class: "card stack" }, [
+    el("div", { class: "section-label" }, title),
+    ...items.map((it) => el("div", { class: "stack", style: "gap:2px" }, [
+      el("strong", { style: "font-weight:600" }, it.question),
+      it.tip ? el("span", { class: "subtitle" }, it.tip) : null,
+    ])),
+  ]);
+  const listCard = (title, items) => !items?.length ? null : el("div", { class: "card stack" }, [
+    el("div", { class: "section-label" }, title),
+    el("ul", { style: "margin:0;padding-left:18px" }, items.map((t) => el("li", { style: "margin-bottom:4px" }, t))),
+  ]);
+
+  for (const c of [
+    qCard("Likely technical questions", prep.technicalQuestions),
+    qCard("Behavioral questions", prep.behavioralQuestions),
+    listCard("Smart questions to ask them", prep.questionsToAsk),
+    listCard("Focus areas to brush up on", prep.focusAreas),
+  ]) if (c) root.appendChild(c);
 }
 
 async function downloadResume(r, btn) {

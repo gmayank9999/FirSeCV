@@ -16,3 +16,4 @@ export const extractJd = (...a) => adapter.extractJd(...a);
 export const generateResume = (...a) => adapter.generateResume(...a);
 export const approveResume = (...a) => adapter.approveResume(...a);
 export const searchResumes = (...a) => adapter.searchResumes(...a);
+export const interviewPrep = (...a) => adapter.interviewPrep(...a);

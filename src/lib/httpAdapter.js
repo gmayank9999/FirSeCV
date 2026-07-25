@@ -20,6 +20,7 @@ export const updateMasterProfile = (patch) => req("/api/master-profile", { metho
 export const extractJd = (payload) => req("/api/extract-jd", { method: "POST", body: payload });
 export const generateResume = (payload) => req("/api/generate-resume", { method: "POST", body: payload });
 export const approveResume = (payload) => req("/api/approve-resume", { method: "POST", body: payload });
+export const interviewPrep = (payload) => req("/api/interview-prep", { method: "POST", body: payload });
 // The DB returns snake_case rows; normalize to the camelCase shape the UI uses.
 export const searchResumes = async ({ company = "" } = {}) => {
   const rows = (await req(`/api/search-resumes?company=${encodeURIComponent(company)}`)) || [];

@@ -85,6 +85,61 @@ export async function generateResume({ profile = {}, jdText = "", revisionInstru
   return value;
 }
 
+// ---- interview prep from role + company + resume ----
+export async function interviewPrep({ company = "", position = "", jdText = "", structuredContent = null }) {
+  const { value } = await withFallback("interviewPrep",
+    () => interviewPrepReal({ company, position, jdText, structuredContent }),
+    () => interviewPrepLocal({ company, position, jdText, structuredContent }));
+  return value;
+}
+
+function interviewPrepLocal({ company, position, jdText, structuredContent }) {
+  const kws = keywordsFrom(jdText, 12);
+  const text = structuredContent ? resumeText(structuredContent) : "";
+  const missing = kws.filter((k) => !text.includes(k));
+  const role = position || "this role";
+  const co = company || "the company";
+  return {
+    technicalQuestions: (kws.length ? kws : ["your core stack"]).slice(0, 5).map((k) => ({
+      question: `Can you walk through your experience with ${k}?`,
+      tip: `Give a concrete example from your background and quantify the impact.`,
+    })),
+    behavioralQuestions: [
+      { question: "Tell me about a challenging project and how you handled it.", tip: "Use STAR: Situation, Task, Action, Result." },
+      { question: "Describe a time you disagreed with a teammate.", tip: "Focus on collaboration and the outcome, not the conflict." },
+      { question: "How do you prioritize when everything feels urgent?", tip: "Show a concrete framework you actually use." },
+      { question: `Why do you want to work at ${co}?`, tip: "Tie your motivation to the role and the company's work." },
+    ],
+    questionsToAsk: [
+      `What does success look like in the ${role} role in the first 90 days?`,
+      "What are the biggest challenges the team is facing right now?",
+      "How is performance measured and reviewed here?",
+      `What does the team structure look like at ${co}?`,
+      "What are the opportunities for growth and learning?",
+    ],
+    focusAreas: (missing.length ? missing : kws).slice(0, 4).map((k) => `Brush up on ${k}.`),
+  };
+}
+
+const PREP_SHAPE = `{
+  "technicalQuestions": [{ "question": string, "tip": string }],
+  "behavioralQuestions": [{ "question": string, "tip": string }],
+  "questionsToAsk": string[],
+  "focusAreas": string[]
+}`;
+
+async function interviewPrepReal({ company, position, jdText, structuredContent }) {
+  const prompt =
+    `You are an interview coach. Based on the role, company, job description, and the candidate's resume, ` +
+    `produce interview prep as ONLY JSON in this exact shape:\n${PREP_SHAPE}\n\n` +
+    `Include: 5 technical questions specific to the role and job description, each with a short tip on how to answer well using the candidate's actual background; ` +
+    `4 behavioral questions, each with a tip that references the candidate's experience where possible; ` +
+    `5 smart questions the candidate should ask the interviewer about the role and company; ` +
+    `and 4 focus areas to brush up on (skills the job wants that the resume is light on). Do not invent facts about the candidate.\n\n` +
+    `ROLE: ${position} at ${company}\n\nJOB DESCRIPTION:\n${jdText}\n\nCANDIDATE RESUME:\n${JSON.stringify(structuredContent)}`;
+  return callGeminiJson(prompt);
+}
+
 export function scoreResume(structuredContent, jdText) {
   const kws = keywordsFrom(jdText, 14);
   const text = resumeText(structuredContent);
