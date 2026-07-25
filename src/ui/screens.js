@@ -144,6 +144,7 @@ export function renderExtract() {
 
   genBtn.addEventListener("click", async () => {
     store.currentJd = { company: company.value.trim(), position: position.value.trim(), jdText: jd.value.trim() };
+    reviewChat = [];
     spinnerButton(genBtn, true);
     renderReviewLoading();
     showScreen("review");
@@ -175,6 +176,8 @@ export function renderExtract() {
 
 // ==================================================================== review
 
+let reviewChat = []; // { role: "user" | "system", text } — persists across refines
+
 function renderReviewLoading() {
   const root = mount("review");
   root.replaceChildren(
@@ -205,7 +208,11 @@ export function renderReview() {
     (atsBreakdown.notes || []).map((n) => el("li", {}, n)));
 
   // Chat / refine
-  const chatLog = el("div", { class: "stack" });
+  const chatLog = el("div", { class: "stack" },
+    reviewChat.map((m) => el("div", {
+      class: m.role === "user" ? "chip" : "subtitle",
+      style: m.role === "user" ? "align-self:flex-end" : "",
+    }, m.text)));
   const chatInput = el("input", { type: "text", class: "input", placeholder: "e.g. \"shorten the projects section\"" });
   const refineBtn = el("button", { class: "btn btn--primary" }, "Refine");
 
@@ -213,7 +220,7 @@ export function renderReview() {
     const msg = chatInput.value.trim();
     if (!msg) return;
     chatInput.value = "";
-    chatLog.appendChild(el("div", { class: "chip", style: "align-self:flex-end" }, msg));
+    reviewChat.push({ role: "user", text: msg });
     spinnerButton(refineBtn, true);
     try {
       store.currentResume = await api.generateResume({
@@ -221,6 +228,7 @@ export function renderReview() {
         revisionInstruction: msg,
         previousContent: sc,
       });
+      reviewChat.push({ role: "system", text: `Updated — ATS now ${store.currentResume.atsScore}.` });
       renderReview();
     } catch {
       toast("Revision failed", "error");

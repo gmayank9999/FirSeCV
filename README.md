@@ -1,43 +1,48 @@
-# <img src="assets/images/logo512.png" alt="Extension Logo" width="100" height="100" style="vertical-align: middle; margin-left: 10px;"> Fresh Chrome Extension boilerplate
+# FirSeCV
 
-## Purpose
+**Extract a job description, generate a résumé tailored to it, and keep a permanent record of every application — right from the page you're applying on.**
 
-This extension serves as a boilerplate for creating new extensions _(Manifest V3)_ for Chromium-based browsers, such as Google Chrome.
+FirSeCV is a Chrome side-panel extension. You set up a structured **Master Data** profile once (all your experience, projects, skills, and education). Then, on any job posting, you click **Extract** to pull the description straight off the page, generate a résumé tailored to that JD with a live ATS score, refine it by chatting ("shorten the projects section", "emphasize backend"), and approve. Approved résumés are logged so months later you know exactly what you sent, to whom, and when.
 
-It shows basic interactions between a popup, content scripts, and the active tab. It can be easily extended to add more complex functionality.
+## Why this beats just asking an LLM
 
-## The biggest improvement in this version (3+)
+A chat assistant can rewrite a résumé — if you paste everything in by hand, every single time. FirSeCV gives you:
 
-Now when the user clicks the browser's extension button a popup is shown instead of just logging a message to the console.
+1. A **persistent structured profile** you set up once and reuse everywhere.
+2. **One-click JD capture** from the actual page you're applying on.
+3. A **real document + ATS score**, not chat text.
+4. **Permanent memory** — every approved résumé tied to the exact company, role, and date, always retrievable.
 
-<picture>
-  <img alt="fresh-chrome-extension-demo-image" src="https://github.com/user-attachments/assets/2a231a11-b60a-405b-835a-aa03d01d1988">
-</picture>
+It's an end-to-end workflow tool, not a prompt.
 
-## What this extension does
+## Status
 
-It provides the following functionality:
+This build is the **complete extension UI running against a mock backend**, so the whole flow is clickable and demoable today. The mock lives behind a single seam (`src/lib/api.js`) and swaps for a real backend without touching any screen. Still to come in later work: a Node/Express backend, Google Gemini for parsing/generation/scoring, a LaTeX→PDF pipeline, and Supabase + Notion for storage and application tracking.
 
-1. When installed, it adds a button to the browser's top bar.
+## Install (unpacked)
 
-2. Clicking the extension button opens a popup with a button labeled "Click this button to add an orange div to the page".
+1. Open `chrome://extensions` and enable **Developer mode** (top right).
+2. Click **Load unpacked** and select this repository's root folder (the one with `manifest.json`).
+3. Click the FirSeCV icon in the toolbar to open the side panel.
 
-3. When the button in the popup is clicked, it injects a script into the active tab that:
-   - Adds an orange div at the top of the page with the message "DOM modified!"
-   - Logs the message "Action executed from popup!" to the DevTools console (F12)
+## How to use
 
-## How to install
+1. **First run** — paste your existing résumé; FirSeCV structures it and lets you edit the details, then saves your Master Data.
+2. **On a job posting** — click **Extract JD from this page**, confirm the company/position/description, and **Generate**.
+3. **Review** — check the ATS score and matched/missing keywords, refine with chat until it's right.
+4. **Approve** — the résumé is saved to your application history, searchable by company.
 
-1. Clone or download this repository to your local machine.
-2. Open your Chrome-based browser and navigate to `chrome://extensions`.
-3. Enable "Developer mode" by toggling the switch in the top right corner.
-4. Click on "Load unpacked" button that appears after enabling developer mode.
-5. Select the directory containing the extension files (the same directory as the `manifest.json` file).
-6. The extension should now appear in your browser's toolbar. If it doesn't, check whether it's hidden behind the browser's "puzzle" icon.
+## Project layout
 
-## Logo and Icons Attribution
+```
+manifest.json          Manifest V3 config (side panel)
+background.js          Opens the side panel on icon click
+src/
+  sidepanel/           Panel shell, styles, router + theme
+  lib/                 api facade, mock adapter, store, page scraper
+  ui/                  screen renderers + shared components
+```
 
-The logo and icons used in this project are attributed as follows:
+## Logo and icon attribution
 
 <a href="https://www.flaticon.com/free-icons/socket" title="socket icons">Socket icons created by Freepik - Flaticon</a>
-# FirSeCV
