@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FirSeCV</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body data-screen="extract">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand__mark">FS</span>
+        <span class="brand__name">FirSeCV</span>
+      </div>
+      <div class="app-header__actions">
+        <button id="nav-new" class="btn btn--ghost" type="button" hidden>New</button>
+        <button id="nav-history" class="btn btn--ghost" type="button" hidden>History</button>
+        <button id="theme-toggle" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <section class="screen" data-screen="onboarding" hidden></section>
+      <section class="screen" data-screen="extract" hidden></section>
+      <section class="screen" data-screen="review" hidden></section>
+      <section class="screen" data-screen="history" hidden></section>
+    </main>
+
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

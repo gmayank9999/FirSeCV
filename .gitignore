@@ -1,0 +1,18 @@
+# Local planning/design notes — not part of the shipped extension
+docs/
+
+# Dependencies / build output (future backend)
+node_modules/
+dist/
+build/
+*.log
+
+# Environment / secrets
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
