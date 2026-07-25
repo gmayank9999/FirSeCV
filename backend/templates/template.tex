@@ -1,0 +1,120 @@
+%-------------------------
+% FirSeCV Resume Template
+% Clean, ATS-friendly, single-column professional layout
+%-------------------------
+
+\documentclass[11pt,letterpaper]{article}
+
+%---------- PACKAGES ----------
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[empty]{fullpage}
+\usepackage[left=0.55in, right=0.55in, top=0.5in, bottom=0.5in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{multicol}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Ensure URLs are machine-readable (ATS-friendly)
+\hypersetup{
+  colorlinks=true,
+  urlcolor=black
+}
+
+%---------- SECTION FORMATTING ----------
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+%---------- CUSTOM COMMANDS ----------
+
+% Name heading
+\newcommand{\resumeName}[1]{%
+  {\Huge \textbf{#1}}
+}
+
+% Contact line item
+\newcommand{\resumeContact}[2]{%
+  \href{#1}{\underline{#2}}%
+}
+
+% Subheading: role | company, dates, location
+\newcommand{\resumeSubheading}[4]{%
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textit{\small #4} \\
+      \textit{\small #3} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+% Project heading: name | tech stack
+\newcommand{\resumeProjectHeading}[2]{%
+  \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & \textit{\small #2}\\
+    \end{tabular*}\vspace{-7pt}
+}
+
+% Bullet item
+\newcommand{\resumeItem}[1]{%
+  \item\small{#1 \vspace{-2pt}}
+}
+
+% List environments
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.3in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%---------- DOCUMENT START ----------
+\begin{document}
+
+%---------- HEADER ----------
+\begin{center}
+  \resumeName{{{FULL_NAME}}} \\[4pt]
+  \small
+  {{CONTACT_LINE}}
+\end{center}
+
+\vspace{-4pt}
+
+%---------- EDUCATION ----------
+\section{Education}
+\resumeSubHeadingListStart
+{{EDUCATION_BLOCK}}
+\resumeSubHeadingListEnd
+
+%---------- EXPERIENCE ----------
+\section{Experience}
+\resumeSubHeadingListStart
+{{EXPERIENCE_BLOCK}}
+\resumeSubHeadingListEnd
+
+%---------- PROJECTS ----------
+\section{Projects}
+\resumeSubHeadingListStart
+{{PROJECTS_BLOCK}}
+\resumeSubHeadingListEnd
+
+%---------- SKILLS ----------
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{\item{
+    {{SKILLS_BLOCK}}
+  }}
+\end{itemize}
+
+\end{document}
