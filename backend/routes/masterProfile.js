@@ -5,7 +5,7 @@ import * as db from "../lib/supabase.js";
 
 export const masterProfile = Router();
 
-// GET /api/master-profile — current profile or 404 (triggers onboarding).
+// GET /api/master-profile - current profile or 404 (triggers onboarding).
 masterProfile.get("/", async (_req, res, next) => {
   try {
     const profile = await db.getProfile(DEMO_USER);
@@ -14,7 +14,7 @@ masterProfile.get("/", async (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/master-profile — { resumeText } to parse, or a full profile object.
+// POST /api/master-profile - { resumeText } to parse, or a full profile object.
 masterProfile.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -24,7 +24,7 @@ masterProfile.post("/", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// PATCH /api/master-profile — merge partial fields.
+// PATCH /api/master-profile - merge partial fields.
 masterProfile.patch("/", async (req, res, next) => {
   try {
     const saved = await db.saveProfile(DEMO_USER, req.body || {});

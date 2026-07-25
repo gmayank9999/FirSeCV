@@ -1,5 +1,5 @@
 // Runs in the page context via chrome.scripting.executeScript.
-// Must be fully self-contained (no imports) — it is serialized and injected.
+// Must be fully self-contained (no imports) - it is serialized and injected.
 
 export function scrapePage() {
   const selectors = [

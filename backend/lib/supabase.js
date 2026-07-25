@@ -1,5 +1,5 @@
 // Data + file storage. Uses Supabase's REST (PostgREST) and Storage HTTP APIs
-// directly via fetch — no SDK dependency. Falls back to an in-memory store when
+// directly via fetch - no SDK dependency. Falls back to an in-memory store when
 // SUPABASE_URL / SERVICE_ROLE_KEY are absent.
 
 import { config, live } from "../config.js";

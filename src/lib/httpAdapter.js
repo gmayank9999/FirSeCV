@@ -1,4 +1,4 @@
-// Real backend adapter. Same surface as mockAdapter — talk to the Express API.
+// Real backend adapter. Same surface as mockAdapter - talk to the Express API.
 // Enable by flipping USE_MOCK in api.js once the backend is running.
 
 const BASE = "http://localhost:3000";

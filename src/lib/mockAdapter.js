@@ -39,7 +39,7 @@ function resumeText(sc) {
 function contactLine(p) {
   return [p.email, p.phone, p.location, p.links?.linkedin, p.links?.github, p.links?.portfolio]
     .filter(Boolean)
-    .join("  •  ");
+    .join("  |  ");
 }
 
 // Best-effort parse of pasted resume text into the profile schema.
@@ -78,13 +78,13 @@ function buildResume(profile, jdText) {
 
   const experience = (profile.experience?.length
     ? profile.experience
-    : [{ company: "Recent Employer", role: "Software Engineer", dates: "2022 — Present",
+    : [{ company: "Recent Employer", role: "Software Engineer", dates: "2022 - Present",
         bullets: ["Delivered features across the stack, collaborating with product and design.",
                   "Improved reliability and performance of core services."] }]
   ).map((e) => ({
     company: e.company || "",
     role: e.role || "",
-    dates: e.dates || [e.start_date, e.end_date].filter(Boolean).join(" — "),
+    dates: e.dates || [e.start_date, e.end_date].filter(Boolean).join(" - "),
     bullets: (e.bullets || []).map(emphasize),
   }));
 
@@ -108,7 +108,7 @@ function buildResume(profile, jdText) {
   const education = (profile.education || []).map((ed) => ({
     institution: ed.institution || "",
     degree: [ed.degree, ed.field].filter(Boolean).join(", "),
-    dates: ed.dates || [ed.start_date, ed.end_date].filter(Boolean).join(" — "),
+    dates: ed.dates || [ed.start_date, ed.end_date].filter(Boolean).join(" - "),
   }));
 
   return {
@@ -130,7 +130,7 @@ function scoreResume(structuredContent, jdText) {
   const notes = [];
   notes.push(structuredContent.experience?.length ? "Standard experience section present." : "Add an experience section.");
   notes.push(missing.length ? `Consider working in: ${missing.slice(0, 4).join(", ")}.` : "Strong keyword coverage.");
-  notes.push("Single-column layout — ATS-parser friendly.");
+  notes.push("Single-column layout - ATS-parser friendly.");
   return { score, atsBreakdown: { matched, missing, notes } };
 }
 
@@ -201,7 +201,7 @@ function applyRevision(content, instruction) {
   }
   if (/remove.*project|drop.*project|no project/.test(ins)) c.projects = [];
 
-  // "emphasize X" / "focus on X" — move sections/skills matching X to the front.
+  // "emphasize X" / "focus on X" - move sections/skills matching X to the front.
   const emph = ins.match(/(?:emphasi[sz]e|focus on|highlight|more)\s+([a-z+#. ]{2,30})/);
   if (emph) {
     const term = emph[1].trim().split(" ")[0];

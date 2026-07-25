@@ -1,6 +1,6 @@
 // Populate the LaTeX template with generated content and (when a TeX engine is
 // installed) compile it to PDF. Without an engine, the .tex source is returned
-// and PDF compilation is skipped — the pipeline degrades gracefully.
+// and PDF compilation is skipped - the pipeline degrades gracefully.
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -72,7 +72,7 @@ export async function compileToPdf(tex) {
     }
     return await read(join(dir, "resume.pdf"));
   } catch (err) {
-    // Engine missing or compile failed — caller stores the .tex source instead.
+    // Engine missing or compile failed - caller stores the .tex source instead.
     console.warn("[FirSeCV] LaTeX compile failed:", err.message);
     return null;
   }

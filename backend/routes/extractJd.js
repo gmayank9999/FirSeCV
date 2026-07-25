@@ -3,7 +3,7 @@ import * as gemini from "../lib/gemini.js";
 
 export const extractJd = Router();
 
-// POST /api/extract-jd — { rawPageText, pageUrl } -> { company, position, jdText }
+// POST /api/extract-jd - { rawPageText, pageUrl } -> { company, position, jdText }
 extractJd.post("/", async (req, res, next) => {
   try {
     const { rawPageText = "", pageUrl = "" } = req.body || {};

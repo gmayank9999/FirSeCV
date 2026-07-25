@@ -19,7 +19,7 @@ create table if not exists resume_versions (
   jd_text           text,
   ats_score         integer,
   ats_breakdown     jsonb,       -- matched/missing keywords + notes shown at approval
-  structured_content jsonb,      -- the résumé content, to re-render the detail view
+  structured_content jsonb,      -- the resume content, to re-render the detail view
   pdf_storage_path  text,
   resume_url        text,        -- public URL of the stored PDF
   latex_source      text,

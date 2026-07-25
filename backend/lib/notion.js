@@ -9,7 +9,7 @@ export async function createTrackerRow({ company, position, atsScore, resumeUrl,
   }
   // Property names/types match the "Job Applications" DB: title is "Name",
   // Company/Position are rich_text, plus date / number / url / select.
-  const title = [company, position].filter(Boolean).join(" — ") || "Application";
+  const title = [company, position].filter(Boolean).join(" - ") || "Application";
   const res = await fetch("https://api.notion.com/v1/pages", {
     method: "POST",
     headers: {

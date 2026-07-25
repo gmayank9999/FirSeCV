@@ -10,7 +10,7 @@ export const config = {
     model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest",
   },
   supabase: {
-    // Accept either the base project URL or a pasted REST/storage endpoint —
+    // Accept either the base project URL or a pasted REST/storage endpoint -
     // normalize down to the base ("https://<ref>.supabase.co").
     url: (process.env.SUPABASE_URL || "")
       .trim()
@@ -31,5 +31,5 @@ export const live = {
   notion: Boolean(config.notion.token && config.notion.databaseId),
 };
 
-// Single demo user until Supabase Auth lands (see plan §1 — MVP allows one user).
+// Single demo user until Supabase Auth lands (see plan §1 - MVP allows one user).
 export const DEMO_USER = "demo-user";

@@ -19,24 +19,24 @@ export function renderOnboarding() {
 
   root.appendChild(el("div", { class: "stack" }, [
     el("h1", { class: "title" }, "Set up your Master Data"),
-    el("p", { class: "subtitle" }, "Paste your current résumé — FirSeCV structures it once, then reuses it for every tailored resume. You can edit anything below."),
+    el("p", { class: "subtitle" }, "Paste your current resume - FirSeCV structures it once, then reuses it for every tailored resume. You can edit anything below."),
   ]));
 
-  const paste = el("textarea", { class: "textarea", placeholder: "Paste your résumé text here…", rows: "7" });
-  const parseBtn = el("button", { class: "btn btn--primary" }, "Parse résumé");
+  const paste = el("textarea", { class: "textarea", placeholder: "Paste your resume text here...", rows: "7" });
+  const parseBtn = el("button", { class: "btn btn--primary" }, "Parse resume");
   const identity = el("div", { class: "stack" });
   const manualLink = el("button", { class: "link-btn" }, "or fill it in manually");
 
   parseBtn.addEventListener("click", async () => {
     const text = paste.value.trim();
-    if (!text) return toast("Paste some résumé text first", "error");
+    if (!text) return toast("Paste some resume text first", "error");
     spinnerButton(parseBtn, true);
     try {
       onboardingDraft = await api.saveMasterProfile({ resumeText: text });
       renderIdentity(identity);
-      toast("Parsed — review the details", "success");
+      toast("Parsed - review the details", "success");
     } catch {
-      toast("Could not parse résumé", "error");
+      toast("Could not parse resume", "error");
     } finally {
       spinnerButton(parseBtn, false);
     }
@@ -48,7 +48,7 @@ export function renderOnboarding() {
   });
 
   root.appendChild(el("div", { class: "card stack" }, [
-    el("div", { class: "field" }, [el("label", {}, "Your résumé"), paste]),
+    el("div", { class: "field" }, [el("label", {}, "Your resume"), paste]),
     el("div", { class: "row row--between" }, [parseBtn, manualLink]),
   ]));
   root.appendChild(identity);
@@ -113,9 +113,9 @@ export function renderExtract() {
 
   const company = el("input", { type: "text", class: "input", placeholder: "Company" });
   const position = el("input", { type: "text", class: "input", placeholder: "Position" });
-  const jd = el("textarea", { class: "textarea", rows: "8", placeholder: "The job description will appear here after you extract it — edit freely." });
+  const jd = el("textarea", { class: "textarea", rows: "8", placeholder: "The job description will appear here after you extract it - edit freely." });
 
-  const genBtn = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Generate résumé");
+  const genBtn = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Generate resume");
   genBtn.disabled = true;
 
   const syncGen = () => (genBtn.disabled = !jd.value.trim());
@@ -134,7 +134,7 @@ export function renderExtract() {
       position.value = parsed.position;
       jd.value = parsed.jdText;
       syncGen();
-      toast("Job description extracted — confirm the details", "success");
+      toast("Job description extracted - confirm the details", "success");
     } catch {
       toast("Couldn't read this page. Paste the JD manually.", "error");
     } finally {
@@ -152,7 +152,7 @@ export function renderExtract() {
       store.currentResume = await api.generateResume(store.currentJd);
       renderReview();
     } catch {
-      toast("Generation failed — try again", "error");
+      toast("Generation failed - try again", "error");
       showScreen("extract");
     } finally {
       spinnerButton(genBtn, false);
@@ -160,7 +160,7 @@ export function renderExtract() {
   });
 
   root.appendChild(el("div", { class: "stack" }, [
-    el("h1", { class: "title" }, "Tailor a résumé"),
+    el("h1", { class: "title" }, "Tailor a resume"),
     el("p", { class: "subtitle" }, "Open a job posting, then extract its description. Confirm the details and generate."),
   ]));
   root.appendChild(el("div", { class: "card stack" }, [
@@ -176,13 +176,13 @@ export function renderExtract() {
 
 // ==================================================================== review
 
-let reviewChat = []; // { role: "user" | "system", text } — persists across refines
+let reviewChat = []; // { role: "user" | "system", text } - persists across refines
 
 function renderReviewLoading() {
   const root = mount("review");
   root.replaceChildren(
     el("div", { class: "stack" }, [
-      el("h1", { class: "title" }, "Generating your résumé…"),
+      el("h1", { class: "title" }, "Generating your resume..."),
       el("div", { class: "card" }, [skeleton(6)]),
     ])
   );
@@ -228,7 +228,7 @@ export function renderReview() {
         revisionInstruction: msg,
         previousContent: sc,
       });
-      reviewChat.push({ role: "system", text: `Updated — ATS now ${store.currentResume.atsScore}.` });
+      reviewChat.push({ role: "system", text: `Updated - ATS now ${store.currentResume.atsScore}.` });
       renderReview();
     } catch {
       toast("Revision failed", "error");
@@ -255,7 +255,7 @@ export function renderReview() {
   });
 
   root.appendChild(el("div", { class: "row row--between" }, [
-    el("h1", { class: "title" }, store.currentJd.position || "Résumé preview"),
+    el("h1", { class: "title" }, store.currentJd.position || "Resume preview"),
     el("button", { class: "link-btn", onclick: () => showScreen("extract") }, "← Edit JD"),
   ]));
   root.appendChild(ats);
@@ -336,7 +336,7 @@ export function renderHistory() {
   const root = mount("history");
   root.replaceChildren();
 
-  const search = el("input", { type: "text", class: "input", placeholder: "Search by company…" });
+  const search = el("input", { type: "text", class: "input", placeholder: "Search by company..." });
   const list = el("div", { class: "stack" });
 
   const load = async (q = "") => {
@@ -365,14 +365,14 @@ function renderHistoryList(list, rows) {
   if (!rows.length) {
     list.replaceChildren(el("div", { class: "empty" }, [
       el("div", { class: "empty__icon" }, "🗂️"),
-      el("p", {}, "No applications yet. Approve a résumé to track it here."),
+      el("p", {}, "No applications yet. Approve a resume to track it here."),
     ]));
     return;
   }
   list.replaceChildren(...rows.map((r) => {
     const card = el("div", { class: "card row row--between", style: "cursor:pointer" }, [
       el("div", { class: "stack", style: "gap:2px" }, [
-        el("strong", {}, r.company || "—"),
+        el("strong", {}, r.company || "-"),
         el("span", { class: "subtitle" }, r.position || ""),
         el("span", { class: "subtitle" }, formatDate(r.appliedAt)),
       ]),
@@ -394,7 +394,7 @@ function formatDate(iso) {
 function scoreBadge(score) {
   const band = score >= 80 ? "var(--success)" : score >= 60 ? "var(--amber)" : "var(--danger)";
   return el("span", { class: "badge", style: `background:color-mix(in srgb, ${band} 16%, transparent);color:${band}` },
-    score != null ? `ATS ${score}` : "ATS —");
+    score != null ? `ATS ${score}` : "ATS -");
 }
 
 // ------------------------------------------------------------- resume detail
@@ -408,8 +408,8 @@ function renderResumeDetail(r) {
     scoreBadge(r.atsScore),
   ]));
   root.appendChild(el("div", { class: "stack", style: "gap:2px" }, [
-    el("h1", { class: "title" }, r.position || "Résumé"),
-    el("span", { class: "subtitle" }, [r.company, formatDate(r.appliedAt)].filter(Boolean).join("  •  ")),
+    el("h1", { class: "title" }, r.position || "Resume"),
+    el("span", { class: "subtitle" }, [r.company, formatDate(r.appliedAt)].filter(Boolean).join("  |  ")),
   ]));
 
   // ATS breakdown (same as the approval screen), when it was stored
@@ -434,7 +434,7 @@ function renderResumeDetail(r) {
 
   // Download / open actions
   const actions = el("div", { class: "row" });
-  const dl = el("button", { class: "btn btn--primary btn--block btn--lg" }, r.hasPdf ? "Download PDF" : "Download résumé");
+  const dl = el("button", { class: "btn btn--primary btn--block btn--lg" }, r.hasPdf ? "Download PDF" : "Download resume");
   dl.addEventListener("click", () => downloadResume(r, dl));
   actions.appendChild(dl);
   if (r.hasPdf && /^https?:/.test(r.resumeUrl || "")) {
@@ -442,11 +442,11 @@ function renderResumeDetail(r) {
   }
   root.appendChild(actions);
 
-  // Résumé preview exactly as approved
+  // Resume preview exactly as approved
   if (r.structuredContent) {
     root.appendChild(resumePaper(r.structuredContent));
   } else {
-    root.appendChild(el("div", { class: "card subtitle" }, "Preview wasn't stored for this earlier entry — the file is still downloadable above."));
+    root.appendChild(el("div", { class: "card subtitle" }, "Preview wasn't stored for this earlier entry - the file is still downloadable above."));
   }
 }
 
@@ -461,7 +461,7 @@ async function downloadResume(r, btn) {
     } else if (r.latexSource) {
       triggerDownload(new Blob([r.latexSource], { type: "application/x-tex" }), `${base}.tex`);
     } else {
-      toast("No downloadable file stored for this résumé", "error");
+      toast("No downloadable file stored for this resume", "error");
     }
   } catch {
     toast("Download failed", "error");

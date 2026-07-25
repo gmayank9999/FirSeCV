@@ -1,5 +1,5 @@
 // Single facade the UI uses for all backend calls. Swap the adapter here to go
-// from the mock (this build) to a real HTTP backend later — nothing else changes.
+// from the mock (this build) to a real HTTP backend later - nothing else changes.
 
 import * as mock from "./mockAdapter.js";
 import * as http from "./httpAdapter.js";

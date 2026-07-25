@@ -62,7 +62,7 @@ export function keywordChips(list = [], variant = "matched") {
   if (!list.length) {
     const none = document.createElement("span");
     none.className = "subtitle";
-    none.textContent = "—";
+    none.textContent = "-";
     wrap.appendChild(none);
     return wrap;
   }

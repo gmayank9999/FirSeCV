@@ -21,7 +21,7 @@ app.use("/api/generate-resume", generateResume);
 app.use("/api/approve-resume", approveResume);
 app.use("/api/search-resumes", searchResumes);
 
-// Central error handler — every route forwards thrown errors here.
+// Central error handler - every route forwards thrown errors here.
 app.use((err, _req, res, _next) => {
   console.error("[FirSeCV]", err.message);
   res.status(500).json({ error: "server_error", message: err.message });

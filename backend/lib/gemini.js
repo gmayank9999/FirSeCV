@@ -1,4 +1,4 @@
-// LLM operations: résumé parsing, JD extraction, résumé generation, ATS scoring.
+// LLM operations: resume parsing, JD extraction, resume generation, ATS scoring.
 // When GEMINI_API_KEY is set the real calls go here; until then a deterministic
 // local implementation keeps the whole pipeline working end to end.
 
@@ -34,7 +34,7 @@ async function withFallback(label, realFn, localFn) {
   return { value: await localFn(), source: "local" };
 }
 
-// ---- parse a pasted résumé into the master-profile schema ----
+// ---- parse a pasted resume into the master-profile schema ----
 export async function parseResume(text) {
   const { value } = await withFallback("parseResume", () => parseResumeReal(text), () => parseResumeLocal(text));
   return value;
@@ -77,7 +77,7 @@ function extractJdLocal(rawPageText = "", pageUrl = "") {
   return { company, position, jdText: text.slice(0, 6000) };
 }
 
-// ---- generate tailored résumé content from a profile + JD ----
+// ---- generate tailored resume content from a profile + JD ----
 export async function generateResume({ profile = {}, jdText = "", revisionInstruction = "", previousContent = null }) {
   const { value } = await withFallback("generateResume",
     () => generateResumeReal({ profile, jdText, revisionInstruction, previousContent }),
@@ -95,7 +95,7 @@ export function scoreResume(structuredContent, jdText) {
   const notes = [
     structuredContent.experience?.length ? "Standard experience section present." : "Add an experience section.",
     missing.length ? `Consider working in: ${missing.slice(0, 4).join(", ")}.` : "Strong keyword coverage.",
-    "Single-column layout — ATS-parser friendly.",
+    "Single-column layout - ATS-parser friendly.",
   ];
   return { score, atsBreakdown: { matched, missing, notes } };
 }
@@ -111,19 +111,19 @@ function resumeText(sc) {
 
 function contactLine(p) {
   return [p.email, p.phone, p.location, p.links?.linkedin, p.links?.github, p.links?.portfolio]
-    .filter(Boolean).join("  •  ");
+    .filter(Boolean).join("  |  ");
 }
 
 function buildResume(profile, jdText) {
   const kws = keywordsFrom(jdText, 14);
   const kwSet = new Set(kws);
   const experience = (profile.experience?.length ? profile.experience : [{
-    company: "Recent Employer", role: "Software Engineer", dates: "2022 — Present",
+    company: "Recent Employer", role: "Software Engineer", dates: "2022 - Present",
     bullets: ["Delivered features across the stack, collaborating with product and design.",
               "Improved reliability and performance of core services."],
   }]).map((e) => ({
     company: e.company || "", role: e.role || "",
-    dates: e.dates || [e.start_date, e.end_date].filter(Boolean).join(" — "),
+    dates: e.dates || [e.start_date, e.end_date].filter(Boolean).join(" - "),
     bullets: e.bullets || [],
   }));
   const projects = (profile.projects?.length ? profile.projects : [{
@@ -141,7 +141,7 @@ function buildResume(profile, jdText) {
   const education = (profile.education || []).map((ed) => ({
     institution: ed.institution || "",
     degree: [ed.degree, ed.field].filter(Boolean).join(", "),
-    dates: ed.dates || [ed.start_date, ed.end_date].filter(Boolean).join(" — "),
+    dates: ed.dates || [ed.start_date, ed.end_date].filter(Boolean).join(" - "),
   }));
   return {
     header: { fullName: profile.fullName || "Your Name", contactLine: contactLine(profile) },
@@ -192,7 +192,7 @@ async function callGeminiJson(prompt, { retries = 3 } = {}) {
       }),
     });
     if (res.ok) break;
-    // 429 (rate limit) and 503 (overloaded) are transient — back off and retry.
+    // 429 (rate limit) and 503 (overloaded) are transient - back off and retry.
     if ((res.status === 429 || res.status === 503) && attempt < retries) {
       const body = await res.text();
       const retrySec = Number((body.match(/"retryDelay":\s*"(\d+)s"/) || [])[1]);
@@ -233,7 +233,7 @@ const RESUME_SHAPE = `{
 
 async function parseResumeReal(text) {
   const prompt =
-    `Extract the following résumé into this exact JSON shape. Use "" or [] for anything missing. ` +
+    `Extract the following resume into this exact JSON shape. Use "" or [] for anything missing. ` +
     `Do not invent data. Return ONLY JSON.\n\nSHAPE:\n${PROFILE_SHAPE}\n\nRÉSUMÉ:\n${text}`;
   return callGeminiJson(prompt);
 }
@@ -241,7 +241,7 @@ async function parseResumeReal(text) {
 async function extractJdReal(rawPageText, pageUrl) {
   const prompt =
     `From this raw job-posting page text, return ONLY JSON {"company","position","jdText"}. ` +
-    `"jdText" must be the cleaned job description only — strip nav, footer, and unrelated page content. ` +
+    `"jdText" must be the cleaned job description only - strip nav, footer, and unrelated page content. ` +
     `Page URL: ${pageUrl}\n\nPAGE TEXT:\n${rawPageText.slice(0, 12000)}`;
   const out = await callGeminiJson(prompt);
   return { company: out.company || "Unknown Company", position: out.position || "Unknown Role", jdText: out.jdText || "" };
@@ -249,13 +249,13 @@ async function extractJdReal(rawPageText, pageUrl) {
 
 async function generateResumeReal({ profile, jdText, revisionInstruction, previousContent }) {
   const rules =
-    `Rules: use ONLY facts present in the master profile — never invent employers, dates, or metrics. ` +
+    `Rules: use ONLY facts present in the master profile - never invent employers, dates, or metrics. ` +
     `Select and reorder the most JD-relevant experience and projects; rewrite bullets to emphasise JD-aligned impact. ` +
     `Return ONLY JSON in this shape:\n${RESUME_SHAPE}`;
   const prompt = revisionInstruction && previousContent
-    ? `Apply this change to the résumé JSON and change nothing else: "${revisionInstruction}".\n` +
+    ? `Apply this change to the resume JSON and change nothing else: "${revisionInstruction}".\n` +
       `${rules}\n\nCURRENT RÉSUMÉ:\n${JSON.stringify(previousContent)}\n\nJOB DESCRIPTION:\n${jdText}`
-    : `Create a résumé tailored to the job description from the master profile.\n${rules}\n\n` +
+    : `Create a resume tailored to the job description from the master profile.\n${rules}\n\n` +
       `MASTER PROFILE:\n${JSON.stringify(profile)}\n\nJOB DESCRIPTION:\n${jdText}`;
   return callGeminiJson(prompt);
 }
