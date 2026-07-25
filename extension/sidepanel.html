@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FirSeCV</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <!-- ── HEADER ── -->
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">FirSeCV</span>
+    </div>
+    <nav class="tab-nav" id="tabNav" style="display:none;">
+      <button class="tab-btn active" data-tab="main">Generate</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn" data-tab="profile">Profile</button>
+    </nav>
+  </header>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="app-main" id="appMain">
+
+    <!-- ════════════ ONBOARDING SCREEN ════════════ -->
+    <section class="screen active" id="screen-onboarding">
+      <div class="onboarding-hero">
+        <div class="hero-icon">📄</div>
+        <h1>Welcome to FirSeCV</h1>
+        <p class="hero-sub">Your AI-powered resume tailoring assistant.<br/>Let's set up your profile first.</p>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Paste your existing resume</h2>
+        <p class="card-desc">FirSeCV will parse it into a structured profile automatically.</p>
+        <textarea
+          id="resumeTextInput"
+          class="textarea"
+          placeholder="Paste your full resume text here (plain text, PDF copy-paste, etc.)..."
+          rows="10"
+        ></textarea>
+        <button class="btn btn-primary btn-full" id="parseResumeBtn">
+          <span class="btn-icon">✨</span> Parse & Save Profile
+        </button>
+        <div class="divider"><span>or</span></div>
+        <button class="btn btn-outline btn-full" id="manualSetupBtn">
+          Fill out manually instead →
+        </button>
+      </div>
+    </section>
+
+    <!-- ════════════ MANUAL PROFILE FORM ════════════ -->
+    <section class="screen" id="screen-manual-profile">
+      <div class="screen-header">
+        <button class="back-btn" id="backFromManual">← Back</button>
+        <h2>Your Profile</h2>
+      </div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="mf-name" class="input" placeholder="Jane Smith" />
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="mf-email" class="input" placeholder="jane@example.com" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="mf-phone" class="input" placeholder="+1 (555) 000-0000" />
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="mf-location" class="input" placeholder="San Francisco, CA" />
+          </div>
+          <div class="form-group">
+            <label>LinkedIn URL</label>
+            <input type="url" id="mf-linkedin" class="input" placeholder="https://linkedin.com/in/..." />
+          </div>
+          <div class="form-group">
+            <label>GitHub URL</label>
+            <input type="url" id="mf-github" class="input" placeholder="https://github.com/..." />
+          </div>
+        </div>
+        <p class="hint-text">💡 You can add detailed experience, projects, and skills after saving — paste your resume text for faster setup.</p>
+        <button class="btn btn-primary btn-full" id="saveManualProfileBtn">Save Profile</button>
+      </div>
+    </section>
+
+    <!-- ════════════ MAIN — EXTRACT & GENERATE ════════════ -->
+    <section class="screen" id="screen-main">
+      <!-- Step 1: Extract -->
+      <div class="step-card" id="step-extract">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <div>
+            <h3>Extract Job Description</h3>
+            <p class="step-desc">Navigate to a job posting, then click Extract.</p>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" id="extractBtn">
+          <span class="btn-icon">🔍</span> Extract JD from This Page
+        </button>
+      </div>
+
+      <!-- Extracted JD editor (hidden until extraction) -->
+      <div class="card hidden" id="jdEditor">
+        <div class="jd-editor-header">
+          <h3>Review & Edit</h3>
+          <button class="icon-btn" id="clearJdBtn" title="Clear and start over">✕</button>
+        </div>
+        <div class="form-group">
+          <label>Company</label>
+          <input type="text" id="jd-company" class="input" placeholder="Company name" />
+        </div>
+        <div class="form-group">
+          <label>Position</label>
+          <input type="text" id="jd-position" class="input" placeholder="Job title" />
+        </div>
+        <div class="form-group">
+          <label>Job Description</label>
+          <textarea id="jd-text" class="textarea" rows="6" placeholder="Job description text..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-full" id="generateBtn">
+          <span class="btn-icon">⚡</span> Generate Resume
+        </button>
+      </div>
+    </section>
+
+    <!-- ════════════ REVIEW SCREEN ════════════ -->
+    <section class="screen" id="screen-review">
+      <div class="screen-header">
+        <button class="back-btn" id="backToMain">← Back</button>
+        <h2>Review Your Resume</h2>
+      </div>
+
+      <!-- ATS Score -->
+      <div class="ats-card" id="atsCard">
+        <div class="ats-score-ring">
+          <svg viewBox="0 0 100 100" class="ring-svg">
+            <circle cx="50" cy="50" r="40" class="ring-bg"/>
+            <circle cx="50" cy="50" r="40" class="ring-progress" id="ringProgress"/>
+          </svg>
+          <div class="ring-score" id="ringScore">--</div>
+        </div>
+        <div class="ats-info">
+          <div class="ats-label">ATS Score</div>
+          <div class="ats-sublabel" id="atsSubLabel">Analyzing...</div>
+        </div>
+      </div>
+
+      <!-- ATS Breakdown -->
+      <div class="card collapse-card" id="atsBreakdown" style="display:none;">
+        <button class="collapse-toggle" id="toggleBreakdown">
+          📊 Score Breakdown <span class="toggle-icon">▼</span>
+        </button>
+        <div class="collapse-body" id="breakdownBody">
+          <div class="keyword-section">
+            <h4 class="kw-title matched">✅ Matched Keywords</h4>
+            <div class="keyword-chips" id="matchedKeywords"></div>
+          </div>
+          <div class="keyword-section">
+            <h4 class="kw-title missing">⚠️ Missing Keywords</h4>
+            <div class="keyword-chips" id="missingKeywords"></div>
+          </div>
+          <div class="notes-section" id="atsNotes"></div>
+        </div>
+      </div>
+
+      <!-- PDF Preview -->
+      <div class="card pdf-card">
+        <div class="pdf-header">
+          <h3>📄 Generated Resume</h3>
+          <button class="btn btn-sm btn-outline" id="downloadBtn">Download PDF</button>
+        </div>
+        <iframe id="pdfPreview" class="pdf-frame" title="Resume Preview"></iframe>
+      </div>
+
+      <!-- Chat / Revision -->
+      <div class="card chat-card">
+        <h3 class="chat-title">💬 Request Changes</h3>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-row">
+          <input
+            type="text"
+            id="chatInput"
+            class="input chat-input"
+            placeholder="e.g. Make the projects section shorter..."
+          />
+          <button class="btn btn-primary chat-send-btn" id="chatSendBtn">→</button>
+        </div>
+      </div>
+
+      <!-- Approve -->
+      <button class="btn btn-success btn-full btn-approve" id="approveBtn">
+        ✅ Approve & Save to Tracker
+      </button>
+    </section>
+
+    <!-- ════════════ HISTORY SCREEN ════════════ -->
+    <section class="screen" id="screen-history">
+      <div class="screen-header-plain">
+        <h2>Application History</h2>
+      </div>
+      <div class="search-bar-wrap">
+        <input type="text" id="historySearch" class="input" placeholder="🔍 Search by company..." />
+        <button class="btn btn-outline btn-sm" id="historySearchBtn">Search</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <p>No applications yet.<br/>Approve a resume to see it here.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ PROFILE SCREEN ════════════ -->
+    <section class="screen" id="screen-profile">
+      <div class="screen-header-plain">
+        <h2>Your Profile</h2>
+      </div>
+      <div class="card" id="profileDisplay">
+        <div class="profile-loading">Loading profile...</div>
+      </div>
+      <div class="card">
+        <h3 class="card-title">Update Resume</h3>
+        <p class="card-desc">Paste a new resume to re-parse and update your profile.</p>
+        <textarea id="updateResumeText" class="textarea" rows="6" placeholder="Paste updated resume text..."></textarea>
+        <button class="btn btn-primary btn-full" id="updateProfileBtn">Update Profile</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── LOADING OVERLAY ── -->
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loadingText">Processing...</p>
+    </div>
+  </div>
+
+  <!-- ── TOAST NOTIFICATIONS ── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
