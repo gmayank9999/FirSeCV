@@ -9,6 +9,10 @@ export const config = {
     key: process.env.GEMINI_API_KEY || "",
     model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest",
   },
+  groq: {
+    key: process.env.GROQ_API_KEY || "",
+    model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+  },
   supabase: {
     // Accept either the base project URL or a pasted REST/storage endpoint -
     // normalize down to the base ("https://<ref>.supabase.co").
@@ -27,6 +31,7 @@ export const config = {
 
 export const live = {
   gemini: Boolean(config.gemini.key),
+  groq: Boolean(config.groq.key),
   supabase: Boolean(config.supabase.url && config.supabase.serviceKey),
   notion: Boolean(config.notion.token && config.notion.databaseId),
 };

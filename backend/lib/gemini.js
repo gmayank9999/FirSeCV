@@ -20,15 +20,15 @@ export function keywordsFrom(text = "", limit = 14) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([w]) => w);
 }
 
-// Try the real Gemini call; if it fails (e.g. free-tier rate limit after
+// Try the real LLM call; if it fails (e.g. free-tier rate limit after
 // retries), log and fall back to the local implementation so the app keeps
-// working. Returns { value, source: "gemini" | "local" }.
+// working. Returns { value, source: "llm" | "local" }.
 async function withFallback(label, realFn, localFn) {
-  if (live.gemini) {
+  if (live.gemini || live.groq) {
     try {
-      return { value: await realFn(), source: "gemini" };
+      return { value: await realFn(), source: "llm" };
     } catch (e) {
-      console.warn(`[FirSeCV] Gemini ${label} fell back to local: ${e.message}`);
+      console.warn(`[FirSeCV] LLM ${label} fell back to local: ${e.message}`);
     }
   }
   return { value: await localFn(), source: "local" };
@@ -137,7 +137,7 @@ async function interviewPrepReal({ company, position, jdText, structuredContent 
     `5 smart questions the candidate should ask the interviewer about the role and company; ` +
     `and 4 focus areas to brush up on (skills the job wants that the resume is light on). Do not invent facts about the candidate.\n\n` +
     `ROLE: ${position} at ${company}\n\nJOB DESCRIPTION:\n${jdText}\n\nCANDIDATE RESUME:\n${JSON.stringify(structuredContent)}`;
-  return callGeminiJson(prompt);
+  return callLlmJson(prompt);
 }
 
 export function scoreResume(structuredContent, jdText) {
@@ -228,11 +228,30 @@ function applyRevision(content, instruction) {
   return c;
 }
 
-// ---- real Gemini calls (used when GEMINI_API_KEY is present) ----
+// ---- real LLM calls (used when GEMINI_API_KEY or GROQ_API_KEY is present) ----
 
-// Call Gemini and return parsed JSON. We ask for a JSON mime type and also strip
-// any stray code fences defensively before parsing.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function callLlmJson(prompt, { retries = 3 } = {}) {
+  let lastError;
+  if (live.gemini) {
+    try {
+      return await callGeminiJson(prompt, { retries });
+    } catch (e) {
+      console.warn(`[FirSeCV] Gemini failed, checking fallback: ${e.message}`);
+      lastError = e;
+    }
+  }
+  if (live.groq) {
+    try {
+      return await callGroqJson(prompt, { retries });
+    } catch (e) {
+      console.warn(`[FirSeCV] Groq failed: ${e.message}`);
+      lastError = e;
+    }
+  }
+  throw lastError || new Error("No LLM configured");
+}
 
 async function callGeminiJson(prompt, { retries = 3 } = {}) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.key}`;
@@ -267,6 +286,41 @@ async function callGeminiJson(prompt, { retries = 3 } = {}) {
   }
 }
 
+async function callGroqJson(prompt, { retries = 3 } = {}) {
+  const url = "https://api.groq.com/openai/v1/chat/completions";
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${config.groq.key}`
+      },
+      body: JSON.stringify({
+        model: config.groq.model,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.4
+      })
+    });
+    if (res.ok) break;
+    if ((res.status === 429 || res.status === 503) && attempt < retries) {
+      const waitMs = Math.min(2 ** attempt * 1500, 30000);
+      await sleep(waitMs + Math.random() * 500);
+      continue;
+    }
+    throw new Error(`Groq ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content || "";
+  const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    throw new Error("Groq returned non-JSON: " + cleaned.slice(0, 200));
+  }
+}
+
 const PROFILE_SHAPE = `{
   "fullName": string, "email": string, "phone": string, "location": string,
   "links": { "linkedin": string, "github": string, "portfolio": string },
@@ -290,7 +344,7 @@ async function parseResumeReal(text) {
   const prompt =
     `Extract the following resume into this exact JSON shape. Use "" or [] for anything missing. ` +
     `Do not invent data. Return ONLY JSON.\n\nSHAPE:\n${PROFILE_SHAPE}\n\nRÉSUMÉ:\n${text}`;
-  return callGeminiJson(prompt);
+  return callLlmJson(prompt);
 }
 
 async function extractJdReal(rawPageText, pageUrl) {
@@ -298,7 +352,7 @@ async function extractJdReal(rawPageText, pageUrl) {
     `From this raw job-posting page text, return ONLY JSON {"company","position","jdText"}. ` +
     `"jdText" must be the cleaned job description only - strip nav, footer, and unrelated page content. ` +
     `Page URL: ${pageUrl}\n\nPAGE TEXT:\n${rawPageText.slice(0, 12000)}`;
-  const out = await callGeminiJson(prompt);
+  const out = await callLlmJson(prompt);
   return { company: out.company || "Unknown Company", position: out.position || "Unknown Role", jdText: out.jdText || "" };
 }
 
@@ -312,5 +366,5 @@ async function generateResumeReal({ profile, jdText, revisionInstruction, previo
       `${rules}\n\nCURRENT RÉSUMÉ:\n${JSON.stringify(previousContent)}\n\nJOB DESCRIPTION:\n${jdText}`
     : `Create a resume tailored to the job description from the master profile.\n${rules}\n\n` +
       `MASTER PROFILE:\n${JSON.stringify(profile)}\n\nJOB DESCRIPTION:\n${jdText}`;
-  return callGeminiJson(prompt);
+  return callLlmJson(prompt);
 }
