@@ -29,7 +29,19 @@ approveResume.post("/", async (req, res, next) => {
     const latexSource = await latex.populateTemplate(structuredContent);
     const pdfBytes = await latex.compileToPdf(latexSource); // null if no TeX engine
 
-    const upload = await db.uploadResume(req.userId, { company, position, pdfBytes });
+    // Storage is the least important part of this request. Losing the record of
+    // an application because a bucket was missing would defeat the product, so
+    // a failed upload degrades to "no PDF" - the LaTeX source is still stored
+    // below and stays downloadable.
+    let upload = { path: "", url: "", hasPdf: false };
+    let storageError = null;
+    try {
+      upload = await db.uploadResume(req.userId, { company, position, pdfBytes });
+    } catch (e) {
+      storageError = e.message;
+      console.warn(`[JOZY] resume upload failed; keeping the application and LaTeX source: ${e.message}`);
+    }
+
     const appliedAt = new Date().toISOString();
 
     // Reuse the application the user was already tracking, if they came from one.
@@ -72,6 +84,9 @@ approveResume.post("/", async (req, res, next) => {
       resumeUrl: upload.url,
       notionPageId,
       hasPdf: upload.hasPdf,
+      // Present only when the record was saved but the file was not, so the UI
+      // can say so rather than implying a clean save.
+      storageError,
     });
   } catch (e) { next(e); }
 });

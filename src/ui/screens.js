@@ -415,8 +415,10 @@ export function renderReview() {
   approveBtn.addEventListener("click", async () => {
     spinnerButton(approveBtn, true);
     try {
-      await api.approveResume({ ...store.currentJd, atsScore, atsBreakdown, structuredContent: sc });
-      toast("Saved to your application tracker", "success");
+      const saved = await api.approveResume({ ...store.currentJd, atsScore, atsBreakdown, structuredContent: sc });
+      toast(saved?.storageError
+        ? "Application saved, but the PDF could not be uploaded - the resume text is kept."
+        : "Saved to your application tracker", saved?.storageError ? "error" : "success");
       renderHistory();
       showScreen("history");
     } catch {

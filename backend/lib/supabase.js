@@ -56,12 +56,29 @@ export async function uploadResume(userId, { company, position, pdfBytes }) {
   const path = `${userId}/${slug(company)}_${slug(position)}_${ts}.pdf`;
   if (!pdfBytes) return { path, url: "", hasPdf: false };
   if (!live.supabase) return { path, url: `mock://storage/resumes/${path}`, hasPdf: true };
-  const res = await fetch(sb(`/storage/v1/object/${BUCKET}/${path}`), {
+
+  const put = () => fetch(sb(`/storage/v1/object/${BUCKET}/${path}`), {
     method: "POST",
     headers: headers({ "Content-Type": "application/pdf", "x-upsert": "true" }),
     body: pdfBytes,
   });
-  if (!res.ok) throw new Error(`Supabase upload ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+  let res = await put();
+
+  // The bucket is created at startup, but it can be absent anyway - a project
+  // restored from backup, a bucket deleted by hand, or a startup call that
+  // failed. Create it and retry once rather than losing the file.
+  if (!res.ok) {
+    const body = await res.text();
+    if (!/NoSuchBucket|Bucket not found/i.test(body)) {
+      throw new Error(`Supabase upload ${res.status}: ${body.slice(0, 200)}`);
+    }
+    console.warn(`[JOZY] storage bucket "${BUCKET}" was missing - creating it and retrying`);
+    await ensureBucket();
+    res = await put();
+    if (!res.ok) throw new Error(`Supabase upload ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+
   return { path, url: sb(`/storage/v1/object/public/${BUCKET}/${path}`), hasPdf: true };
 }
 

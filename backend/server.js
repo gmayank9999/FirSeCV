@@ -15,6 +15,7 @@ import { requisitions } from "./routes/requisitions.js";
 import { rubricRoutes } from "./routes/rubric.js";
 import { authRoutes } from "./routes/auth.js";
 import { userIdFromToken } from "./lib/auth.js";
+import * as db from "./lib/supabase.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.join(__dirname, "..", "web");
@@ -69,8 +70,19 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: "server_error", message: err.message });
 });
 
-app.listen(config.port, () => {
+app.listen(config.port, async () => {
   const modes = Object.entries(live).map(([k, v]) => `${k}:${v ? "live" : "mock"}`).join("  ");
   console.log(`JOZY backend on http://localhost:${config.port}  [${modes}]`);
   console.log(`Web app: http://localhost:${config.port}/`);
+
+  // Create the storage bucket approvals upload into. Non-fatal: a failure here
+  // must not stop the server, and uploadResume creates the bucket on demand if
+  // this did not run or did not work.
+  try {
+    const result = await db.ensureBucket();
+    if (result.created) console.log(`Created the "resumes" storage bucket.`);
+  } catch (e) {
+    console.warn(`[JOZY] could not ensure the "resumes" storage bucket: ${e.message}`);
+    console.warn(`[JOZY] resume PDFs will not upload until it exists - create a public bucket named "resumes" in Supabase Storage.`);
+  }
 });

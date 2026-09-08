@@ -267,7 +267,11 @@ function tailoredCard(mount) {
         atsBreakdown: b,
         structuredContent: tailored.structuredContent,
       });
-      toast("Saved — the exact resume is now tied to this application", "success");
+      if (saved.storageError) {
+        toast("Application saved, but the PDF could not be uploaded — the resume text is kept.", "error");
+      } else {
+        toast("Saved — the exact resume is now tied to this application", "success");
+      }
       refreshFollowUpBadge();
       navigate(`#/applications/${saved.applicationId}`);
     } catch (err) {
