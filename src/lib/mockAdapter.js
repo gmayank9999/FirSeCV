@@ -2,7 +2,7 @@
 // the UI can be built and demoed before the real backend exists. Persists the
 // master profile and application history via the store.
 
-import { store, getProfile, setProfile, getHistory, addHistory } from "./store.js";
+import { store, getProfile, setProfile, getHistory, addHistory, getApplications, setApplications } from "./store.js";
 
 const delay = (min = 500, max = 1000) =>
   new Promise((r) => setTimeout(r, min + Math.random() * (max - min)));
@@ -284,3 +284,10 @@ export async function searchResumes({ company = "" } = {}) {
   const q = company.trim().toLowerCase();
   return q ? list.filter((r) => (r.company || "").toLowerCase().includes(q)) : list;
 }
+
+// Newer surface (rubric, quick review, application memory) lives in its own
+// module to keep this file focused on the original tailoring flow.
+export {
+  getRubric, reviewResume, listApplications, createApplication,
+  updateApplication, overview,
+} from "./mockExtras.js";

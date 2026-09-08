@@ -1,12 +1,13 @@
 {
-  "name": "firsecv-backend",
+  "name": "jozy-backend",
   "version": "1.0.0",
-  "description": "FirSeCV backend — JD extraction, resume generation, ATS scoring, storage, and tracker sync.",
+  "description": "JOZY backend - application memory, rubric-based matching, resume tailoring, and recruiter screening.",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

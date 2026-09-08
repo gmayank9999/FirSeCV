@@ -56,3 +56,16 @@ export const searchResumes = async ({ company = "" } = {}) => {
     appliedAt: r.applied_at,
   }));
 };
+
+// ---- rubric + flexible-effort matching ----
+export const getRubric = (jdText, domain = "") => req("/api/rubric", { method: "POST", body: { jdText, domain } });
+export const reviewResume = (payload) => req("/api/review-resume", { method: "POST", body: payload });
+
+// ---- application memory ----
+export const overview = () => req("/api/applications/overview");
+export const listApplications = (filters = {}) => {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v)).toString();
+  return req(`/api/applications${q ? "?" + q : ""}`);
+};
+export const createApplication = (body) => req("/api/applications", { method: "POST", body });
+export const updateApplication = (id, body) => req(`/api/applications/${id}`, { method: "PATCH", body });

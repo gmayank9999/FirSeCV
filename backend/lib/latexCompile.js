@@ -62,7 +62,7 @@ export async function populateTemplate(sc) {
 export async function compileToPdf(tex) {
   const { cmd, kind } = resolveEngine();
   try {
-    const dir = await mkdtemp(join(tmpdir(), "firsecv-"));
+    const dir = await mkdtemp(join(tmpdir(), "jozy-"));
     const texPath = join(dir, "resume.tex");
     await writeFile(texPath, tex, "utf8");
     if (kind === "tectonic") {
@@ -73,7 +73,7 @@ export async function compileToPdf(tex) {
     return await read(join(dir, "resume.pdf"));
   } catch (err) {
     // Engine missing or compile failed - caller stores the .tex source instead.
-    console.warn("[FirSeCV] LaTeX compile failed:", err.message);
+    console.warn("[JOZY] LaTeX compile failed:", err.message);
     return null;
   }
 }

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JOZY — Jobs Made Easy</title>
+    <link rel="icon" href="/assets/icons/icon64.png" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <div id="app" class="app" hidden>
+      <aside class="sidebar">
+        <div class="sidebar__brand">
+          <img src="/assets/icons/icon64.png" alt="" width="26" height="26" />
+          <div>
+            <div class="sidebar__name">JOZY</div>
+            <div class="sidebar__tag">Jobs made easy</div>
+          </div>
+        </div>
+
+        <nav class="nav" id="nav">
+          <div class="nav__group">For your job search</div>
+          <a class="nav__link" href="#/dashboard" data-route="dashboard">Dashboard</a>
+          <a class="nav__link" href="#/applications" data-route="applications">
+            Applications <span class="nav__badge" id="followup-badge" hidden></span>
+          </a>
+          <a class="nav__link" href="#/match" data-route="match">Match a role</a>
+          <a class="nav__link" href="#/profile" data-route="profile">Master profile</a>
+
+          <div class="nav__group">For hiring</div>
+          <a class="nav__link" href="#/recruiter" data-route="recruiter">Requisitions</a>
+        </nav>
+
+        <div class="sidebar__foot">
+          <button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme"></button>
+          <span class="sidebar__user" id="user-email"></span>
+          <button class="link-btn" id="logout" type="button">Log out</button>
+        </div>
+      </aside>
+
+      <main class="main" id="main"></main>
+    </div>
+
+    <div id="auth" class="auth" hidden></div>
+    <div id="boot" class="boot">Loading JOZY…</div>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

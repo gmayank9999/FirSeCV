@@ -1,5 +1,7 @@
-# Local planning/design notes — not part of the shipped extension
-docs/
+# Local planning/design notes — not part of the shipped product
+docs/*
+# ...except the product direction record, which explains why the code is shaped as it is
+!docs/direction.md
 
 # Dependencies / build output (future backend)
 node_modules/

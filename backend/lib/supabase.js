@@ -21,7 +21,7 @@ function headers(extra = {}) {
     ...extra,
   };
 }
-async function rest(path, { method = "GET", body, prefer } = {}) {
+export async function rest(path, { method = "GET", body, prefer } = {}) {
   const res = await fetch(sb(`/rest/v1${path}`), {
     method,
     headers: headers({ "Content-Type": "application/json", ...(prefer ? { Prefer: prefer } : {}) }),

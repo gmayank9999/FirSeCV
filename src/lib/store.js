@@ -35,3 +35,7 @@ export const getSession = () => get("session").then((v) => v ?? null);
 export const setSession = (s) => set("session", s);
 export const clearSession = () =>
   new Promise((r) => S.remove(["session", "masterProfile", "resumeHistory"], r));
+
+// ---- application memory (mock adapter only; the live app reads the backend) ----
+export const getApplications = () => get("applications").then((v) => v ?? []);
+export const setApplications = (list) => set("applications", list);

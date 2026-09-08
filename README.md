@@ -1,120 +1,143 @@
-# FirSeCV
+# JOZY — Jobs Made Easy
 
-**Extract a job description, generate a resume tailored to it, review and refine it with a live ATS score, then keep a permanent, searchable record of every application, all from the page you are applying on.**
+**A memory for your job search, and a fair, explainable way to match resumes to job descriptions — from either side of the hiring table.**
 
-FirSeCV is a Chrome side panel extension backed by a small Node and Express service. You set up a structured Master Data profile once (your experience, projects, skills, education). Then, on any job posting, you click Extract to pull the description off the page, generate a resume tailored to that job (real AI), review it with an ATS score and keyword breakdown, refine it by chatting (for example "shorten the projects section" or "emphasize backend"), and approve. On approval the resume is compiled to a real PDF, stored in Supabase, and logged as a row in a Notion tracker. Months later you know exactly what you sent, to whom, and when, and you can get the exact file back.
+JOZY remembers every role you applied to, when, and the exact resume you sent, so a callback six months later doesn't catch you cold. It turns any job description into an explicit, weighted rubric — then lets you spend as little or as much effort on it as it deserves: a **quick review** of the resume you already have, or a **full tailor** written from your master profile. The same rubric engine runs the **recruiter side**, scoring a batch of applicants against one posting with the reasoning shown.
+
+It runs as a **web app** and as a **Chrome side panel**, on one backend.
 
 ---
 
 ## Table of contents
 
-- [Why this beats just asking an AI](#why-this-beats-just-asking-an-ai)
-- [Architecture at a glance](#architecture-at-a-glance)
-- [The complete workflow](#the-complete-workflow)
-- [What happens on each action](#what-happens-on-each-action)
+- [Why this exists](#why-this-exists)
+- [The rubric engine](#the-rubric-engine)
+- [Architecture](#architecture)
+- [The three workflows](#the-three-workflows)
 - [Tech stack](#tech-stack)
-- [The integrations](#the-integrations)
 - [Resilience: mocks, fallbacks, and rate limits](#resilience-mocks-fallbacks-and-rate-limits)
 - [Setup](#setup)
 - [Project structure](#project-structure)
 - [Data models](#data-models)
-- [Backend API reference](#backend-api-reference)
+- [API reference](#api-reference)
+- [Tests](#tests)
 - [Troubleshooting](#troubleshooting)
 - [Roadmap](#roadmap)
 
 ---
 
-## Why this beats just asking an AI
+## Why this exists
 
-A chat assistant can rewrite a resume, but only if you paste everything in by hand, every single time. FirSeCV gives you:
+Customer discovery (10 interviews, ~25–30 survey responses) moved the product off its original premise. Three findings shaped what is built here:
 
-1. A saved structured profile you set up once and reuse everywhere.
-2. One click job description capture from the actual page you are applying on.
-3. A real document and ATS score, a compiled PDF you can download, not chat text.
-4. Permanent memory. Every approved resume is tied to the exact company, role, and date, always available from Notion and Supabase.
+**1. The pain is memory, not speed.** We assumed the problem was the 20–30 minutes spent tailoring a resume. It isn't. Reply windows run 19–24 weeks; one candidate applied to an MNC in January and got the call in July with no reliable memory of what they had sent. Time saved is a secondary benefit.
 
-It is a full workflow tool, not a prompt.
+> So **applications are the core data model**, not resumes. An application exists whether or not JOZY generated a resume for it, you can backfill ones you made before you had this tool, and the dashboard leads with what is going stale rather than with a "tailor a resume" button.
+
+**2. Effort should be a choice.** *"Not every application needs full tailoring, sometimes I just want it reviewed."*
+
+> So there are **two modes, and neither is the default**. Quick review scores the resume you already have and tells you exactly what to change; it never rewrites anything. Full tailor rewrites from your master profile.
+
+**3. Matching logic can't assume tech.** A law candidate pointed out that ATS keyword tools quietly assume software roles and are useless for legal terminology.
+
+> So the scorer is **domain-aware**, with vocabularies for law, finance, healthcare, marketing, sales, design, operations, HR and education — plus a general path that derives criteria from the posting's own language when the domain is unknown.
+
+And the recruiter side — resumes screened manually against inconsistent criteria, with ATS tools that are expensive and rigid — turns out to be *the same problem from the other end*. It is served by the same engine.
 
 ---
 
-## Architecture at a glance
+## The rubric engine
+
+This is the core of the product, in [backend/lib/rubric.js](backend/lib/rubric.js).
+
+A job description is turned into an explicit, weighted list of **criteria**. Any resume is then scored against that rubric, and every point of the score traces back to a named criterion with a weight and a quote from the resume.
+
+```
+                    ┌──────────────────┐
+   job description →│  deriveRubric()  │→ [{ label, kind, weight, terms, mustHave }]  (sums to 100)
+                    └──────────────────┘
+                              │
+                    ┌─────────┴──────────┐
+                    ▼                    ▼
+        scoreAgainstRubric()      rankCandidates()
+         one resume vs JD          many resumes vs JD
+              │                          │
+     "your match is 82,          "candidate 3 of 40,
+      here is the gap"            here is why"
+```
+
+Because a job seeker's match score and a recruiter's shortlist are produced by *the same function*, they are directly comparable — which is what makes the two-sided thesis testable rather than merely asserted. The recruiter workspace tracks `rubricAgreement`: how often the rubric's ranking agreed with the human's actual shortlist calls.
+
+Three properties it commits to:
+
+- **Weighted.** Criteria carry a share of 100 points. Editing weights re-scores every candidate immediately.
+- **Explainable.** Each criterion reports matched / not found, the terms searched for, and the line of the resume that evidenced it. No opaque score.
+- **Honest about hard requirements.** A stated hard requirement (a degree, a licence, a minimum number of years) that isn't evidenced *caps* the score rather than nudging it, because in practice it usually ends the application.
+
+The rubric is derived by a model when one is configured, and by a local analyser — domain lexicons, requirement-section parsing, qualification patterns, phrase salience — when one isn't. **The local path is the one every user hits before adding an API key, so it is the one under test.**
+
+---
+
+## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph Extension["Chrome Extension (side panel)"]
-    UI["Screens: onboarding, extract, review, history"]
-    API["api.js (adapter seam)"]
-    UI --> API
+  subgraph Clients
+    Web["Web app (web/)<br/>dashboard · applications · match · recruiter"]
+    Ext["Chrome side panel (src/)<br/>extract · review · tailor · applications"]
   end
 
-  subgraph Backend["Node and Express backend :3000"]
-    Routes["/api routes"]
+  subgraph Backend["Node + Express :3000"]
+    R["routes/"]
+    Rub["lib/rubric.js<br/>(shared scoring core)"]
+    App["lib/applications.js"]
+    Rec["lib/recruiter.js"]
     G["lib/gemini.js"]
     S["lib/supabase.js"]
     N["lib/notion.js"]
     L["lib/latexCompile.js"]
-    Routes --> G & S & N & L
+    R --> Rub & App & Rec & G & S & N & L
   end
 
-  API -- "HTTP (httpAdapter)" --> Routes
-  G -- "generateContent" --> Gemini["Google Gemini"]
-  S -- "REST and Storage" --> Supabase["Supabase (Postgres and Storage)"]
-  N -- "pages API" --> Notion["Notion database"]
-  L -- "child process" --> Tectonic["tectonic to PDF"]
+  Web -- "fetch" --> R
+  Ext -- "adapter seam" --> R
+  G -- "Gemini / Groq" --> LLM["LLM (optional)"]
+  S --> Supabase["Supabase (Postgres + Storage)"]
+  N --> Notion["Notion tracker (optional mirror)"]
+  L --> Tectonic["tectonic → PDF"]
 ```
 
-The key design decision is the adapter seam. The extension talks to the backend only through [src/lib/api.js](src/lib/api.js), which sends every call to one of two interchangeable adapters:
+Two design seams worth knowing:
 
-- The mock adapter runs everything in the panel with plain local logic and browser storage. Zero setup, good for demos.
-- The http adapter makes real calls to the Express backend.
-
-Flip one switch (USE_MOCK) to move the whole app between demo and live. Nothing in the UI knows which one is active. The backend works the same way: each integration falls back to a local version when its key is missing, so the whole flow runs before any credential exists.
+- **The adapter seam.** The extension talks to the backend only through [src/lib/api.js](src/lib/api.js), which points at either the HTTP adapter or an in-panel mock. Flip `USE_MOCK` and the whole panel demos with no backend at all.
+- **Capability, not keys.** Every integration falls back to a local implementation when its key is absent, so the entire product runs end to end before a single credential exists. `GET /health` reports which are live.
 
 ---
 
-## The complete workflow
+## The three workflows
 
-1. Sign up or log in. Open the panel and create an account (or log in). Accounts use Supabase Auth, and all your data is scoped to your account. Then, if no profile exists yet, onboarding appears: paste your existing resume, the app structures it into the Master Data format, and you review, edit, and save it.
-2. On a job posting. Go to a careers or job page and open the panel.
-3. Extract. Click "Extract JD from this page". A content script reads the page (it tries known job board containers and falls back to the full text), then the app cleans it into company, position, and job text. You confirm or edit these, so extraction is never trusted blindly.
-4. Generate. The app builds a resume from your Master Data tailored to the job (it picks and rewrites the most relevant experience and projects), and an ATS score plus a matched and missing keyword breakdown is computed.
-5. Review and refine. See a paper styled preview, the ATS ring, and keyword chips. Type revision requests in the chat box (for example "shorten projects" or "emphasize ML"). It regenerates and re-scores, looping until you are happy.
-6. Approve. The content is turned into LaTeX and compiled to a real PDF, uploaded to Supabase Storage, saved in the resume_versions table, and a row is added to your Notion tracker (Company, Position, Date, ATS Score, Resume Link, Status).
-7. Get it back later. The History screen lists every application, searchable by company. Open any entry to see the full approved resume again (preview and ATS breakdown) and download the PDF.
+### 1. Remember an application
 
----
+Log a role from the web app, from the side panel after a review, automatically on approval of a tailored resume, or backfill one you applied to months ago. Then: move it through the pipeline (`saved → applied → screening → interview → offer / rejected / withdrawn`), keep notes, set a next action.
 
-## What happens on each action
+Every status change appends to a timeline rather than overwriting it. JOZY flags an application as needing a chase when an explicit reminder comes due, or when it has gone quiet longer than that stage normally does (21 days after applying, 14 in screening, 10 mid-interview). Terminal states are never chased.
 
-```mermaid
-sequenceDiagram
-  participant U as User
-  participant Ext as Extension
-  participant API as Backend
-  participant Gem as Gemini
-  participant Sb as Supabase
-  participant No as Notion
-  participant Tex as tectonic
+### 2. Match a resume to a role
 
-  U->>Ext: Extract JD
-  Ext->>Ext: scrape active tab (content script)
-  Ext->>API: POST /api/extract-jd
-  API->>Gem: clean into company, position, job text
-  Gem-->>Ext: editable fields
+Paste or extract a job description → see the rubric → then choose:
 
-  U->>Ext: Generate or Refine
-  Ext->>API: POST /api/generate-resume
-  API->>Sb: load master profile
-  API->>Gem: tailor resume to the job (and revision)
-  API-->>Ext: content, ATS score, breakdown
+| | Quick review | Full tailor |
+|---|---|---|
+| What it does | Scores the resume you already have | Rewrites from your master profile |
+| What you get | Score, per-criterion gaps, specific edits to make yourself | A new tailored resume, refinable by chat |
+| Changes your resume? | **No** | Yes |
+| Ends with | Log the application | Approve → PDF + stored version + application record |
 
-  U->>Ext: Approve
-  Ext->>API: POST /api/approve-resume
-  API->>Tex: template to PDF
-  API->>Sb: upload PDF and insert resume_versions row
-  API->>No: create tracker row
-  API-->>Ext: saved, go to History
-```
+Approving compiles the resume to a real PDF, stores it, and ties it to the application — so months later you can produce the exact file you sent.
+
+### 3. Screen candidates (recruiter)
+
+Open a requisition from a job description. JOZY drafts the weighted rubric; **you edit it before anyone is screened**, because shortlisting criteria that live in a reviewer's head can't be defended or repeated. Paste in resumes; each is scored on arrival. Shortlist or reject — your decisions are recorded as *human* decisions, so the agreement between the rubric and your real calls is measurable.
 
 ---
 
@@ -122,36 +145,26 @@ sequenceDiagram
 
 | Layer | Choice | Why |
 |---|---|---|
-| Extension | Chrome Manifest V3, side panel, plain JS, HTML, CSS, ES modules | The side panel stays open through the multi step flow, and no build step keeps changes fast |
-| Job capture | chrome.scripting.executeScript, on demand | Reads the active tab only when you click Extract |
-| Backend | Node.js and Express | Keeps all API keys off the client |
-| AI | Google Gemini (gemini-flash-lite-latest by default) | Resume parsing, job extraction, tailored generation |
-| PDF | tectonic (bundled, self contained TeX engine) run as a child process | Real LaTeX to PDF, no system TeX install |
-| Data and files | Supabase (Postgres over REST and Storage) | Structured profile, resume versions, PDF hosting |
-| Tracker | Notion API | The tracker you actually read |
-| Local state | Browser storage | Theme and mock mode data |
+| Web app | Plain ES modules, no build step | Same vocabulary as the panel; edit and reload |
+| Extension | Chrome Manifest V3 side panel | Stays open through a multi-step flow |
+| Backend | Node.js + Express | Keeps API keys off every client |
+| Matching | Own rubric engine (no dependencies) | Deterministic, explainable, works offline |
+| AI | Gemini, with Groq fallback | Optional — improves rubric and writing quality |
+| PDF | tectonic (bundled) | Real LaTeX → PDF, no system TeX install |
+| Data | Supabase (Postgres + Storage over REST) | Profile, applications, versions, PDFs |
+| Tracker | Notion API | An optional mirror, never the source of truth |
 
-No paid APIs. Every service has a usable free tier or is open source and self hosted.
-
----
-
-## The integrations
-
-Each one lives in backend/lib behind a clean set of functions. All are live when their keys are present and mocked otherwise.
-
-- Gemini, in [lib/gemini.js](backend/lib/gemini.js). It does parseResume, extractJd, generateResume, plus a rules based scoreResume. Real calls ask for JSON output, retry with backoff that respects Google's suggested delay, and fall back to the local generator if rate limited, so the app never breaks.
-- Supabase, in [lib/supabase.js](backend/lib/supabase.js). Profiles and resume versions over the REST API, and PDF upload to a public Storage bucket (created automatically on first run). No SDK, just plain fetch.
-- Notion, in [lib/notion.js](backend/lib/notion.js). Creates a tracker row. The payload matches your database's real property names and types (title, text, date, number, url, select).
-- LaTeX, in [lib/latexCompile.js](backend/lib/latexCompile.js). It fills [templates/template.tex](backend/templates/template.tex) (which defines resumeEntry style macros) and compiles with the bundled tectonic binary. If no engine is available it returns nothing gracefully, and the LaTeX source is stored instead.
+No paid APIs. Every service has a free tier or is self-hosted.
 
 ---
 
 ## Resilience: mocks, fallbacks, and rate limits
 
-- No keys? Every integration mocks locally, and the flow still runs end to end.
-- Gemini rate limited? After retry and backoff it falls back to the local generator and logs it, so you always get a resume.
-- No TeX engine? Approval stores the LaTeX source and skips the PDF, and the extension can still download the LaTeX.
-- Free tier note. Gemini's free tier limits are per minute and per day, per model. Normal use (a click now and then) is fine. Rapid repeated calls can hit the per minute cap, which the backoff handles.
+- **No keys?** Every integration mocks locally and the whole flow still runs.
+- **No model?** The rubric engine's local path takes over. It is fully tested.
+- **Model rate limited?** Retry with backoff honouring Google's suggested delay, then Groq, then local.
+- **No TeX engine?** The LaTeX source is stored and remains downloadable; the PDF is skipped.
+- **Notion down?** Logged and ignored. An application record is never lost to a tracker outage.
 
 ---
 
@@ -162,111 +175,133 @@ Each one lives in backend/lib behind a clean set of functions. All are live when
 ```bash
 cd backend
 npm install
-cp .env.example .env      # fill in the keys below
+cp .env.example .env      # every key is optional
+npm start                 # http://localhost:3000
 ```
-
-Keys in .env (all optional, missing ones run mocked):
 
 | Key | Purpose |
 |---|---|
-| GEMINI_API_KEY | Google Gemini (free tier) |
-| GEMINI_MODEL | optional model override (default gemini-flash-lite-latest) |
-| SUPABASE_URL | base project URL or the REST endpoint (normalized automatically) |
-| SUPABASE_SERVICE_ROLE_KEY | service role key (bypasses row level security for the demo) |
-| NOTION_TOKEN | Notion integration token |
-| NOTION_DATABASE_ID | the tracker database id |
-| LATEX_ENGINE | tectonic (default) or pdflatex |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | Primary LLM (free tier) |
+| `GROQ_API_KEY` / `GROQ_MODEL` | Fallback LLM |
+| `SUPABASE_URL` | Base project URL (a pasted REST endpoint is normalised) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key |
+| `NOTION_TOKEN` / `NOTION_DATABASE_ID` | Optional tracker mirror |
+| `LATEX_ENGINE` | `tectonic` (default) or `pdflatex` |
 
-### 2. Supabase
+Without `SUPABASE_URL`, the backend serves a single shared demo user and the web app skips the login wall — useful for a first run.
 
-Run [backend/db/schema.sql](backend/db/schema.sql) once in the SQL Editor. It is safe to re-run when the schema grows. The Storage bucket named resumes is created automatically on the first backend run.
+### 2. Database
 
-### 3. Notion
+Run [backend/db/schema.sql](backend/db/schema.sql) once in the Supabase SQL Editor. It is safe to re-run and adds new columns idempotently. The `resumes` storage bucket is created on first use.
 
-Create a database with a title property plus Company, Position, Date Applied, ATS Score, Resume Link, and Status, and share it with your integration. The code adapts to your real property names and types.
+### 3. Web app
 
-### 4. Run
+Already served: open **http://localhost:3000/**.
 
-```bash
-npm start                 # http://localhost:3000  - GET /health shows live or mock per integration
-```
+### 4. Extension
 
-The first LaTeX compile downloads the tectonic package bundle once (about one to two minutes). After that, compiles take a few seconds.
-
-### 5. Extension
-
-Go to chrome://extensions, turn on Developer mode, click Load unpacked, and select the repo root. Click the FirSeCV icon. The extension calls the running backend (USE_MOCK is false in [src/lib/api.js](src/lib/api.js); set it to true to demo the panel on its own).
+`chrome://extensions` → Developer mode → Load unpacked → select the repo root.
 
 ---
 
 ## Project structure
 
 ```
-manifest.json               Manifest V3 (side panel)
-background.js               Opens the side panel on icon click
-src/
-  sidepanel/               Panel shell, styles, router, theme
-  lib/
-    api.js                 Facade over the active adapter
-    mockAdapter.js         In panel mock backend
-    httpAdapter.js         Real backend client (normalizes DB rows)
-    store.js               Browser storage wrapper
-    extract.js             Page scraper injected into the tab
-  ui/
-    screens.js             Onboarding, extract, review, history, detail
-    components.js          toast, skeleton, ATS ring, chips, DOM builder
+web/                        Standalone web app (no build step)
+  index.html  app.css  app.js
+  lib/          api.js, ui.js
+  views/        dashboard, applications, match, recruiter, profile, auth
+src/                        Chrome side panel
+  sidepanel/    shell, styles, router, theme
+  lib/          api.js (adapter seam), httpAdapter, mockAdapter, mockExtras, store, extract
+  ui/           screens.js, components.js
 backend/
-  server.js                Express app, routes, error handler
-  config.js                Env and integration flags
-  routes/                  One file per endpoint
-  lib/                     gemini, supabase, notion, latexCompile
-  templates/template.tex   LaTeX resume template
-  db/schema.sql            Supabase tables
-  bin/                     Bundled tectonic engine
+  server.js                 Express app, routes, static hosting of web/
+  config.js                 Env + which integrations are live
+  routes/                   One file per endpoint
+  lib/
+    rubric.js               ★ shared scoring core (derive, score, rank)
+    applications.js         Application memory, follow-ups, funnel
+    recruiter.js            Requisitions, candidates, agreement metric
+    gemini.js               LLM calls + local fallbacks
+    supabase.js  notion.js  latexCompile.js
+  test/                     node:test suites (offline)
+  db/schema.sql             Postgres schema
 ```
 
 ---
 
 ## Data models
 
-master_profiles in Supabase: user_id (text, primary key), data (JSON, the full profile), updated_at.
+**`applications`** — the core record. `company`, `position`, `source_url`, `jd_text`, `domain`, `status`, `status_history` (append-only timeline), `next_action` / `next_action_at`, `notes`, `tags`, `resume_version_id`, `applied_at`, `updated_at`.
 
-resume_versions in Supabase: id, user_id, company, position, jd_text, ats_score, ats_breakdown (JSON), structured_content (JSON), pdf_storage_path, resume_url, latex_source, status, notion_page_id, applied_at.
+**`resume_versions`** — a generated resume, linked to its application. `application_id`, `ats_score`, `ats_breakdown` (the full scored rubric), `structured_content`, `resume_url`, `latex_source`.
 
-Notion tracker: title (for example "Company, Position"), Company, Position (text), Date Applied (date), ATS Score (number), Resume Link (url), Status (select).
+**`requisitions`** — an open role plus its **stored** rubric: `{ domain, criteria: [{ id, label, kind, weight, terms, mustHave }] }`. Stored rather than recomputed so a shortlist stays reproducible.
+
+**`candidates`** — a screened resume: `score`, `breakdown` (per-criterion evidence), `decision`, `decided_by`.
+
+**`master_profiles`** — your structured background, as one JSON blob.
 
 ---
 
-## Backend API reference
+## API reference
 
-| Method and path | Body or query | Returns |
-|---|---|---|
-| GET /health | none | ok and integration modes |
-| GET /api/master-profile | none | profile or 404 |
-| POST /api/master-profile | resumeText or a full profile | saved profile |
-| PATCH /api/master-profile | partial fields | merged profile |
-| POST /api/extract-jd | rawPageText, pageUrl | company, position, jdText |
-| POST /api/generate-resume | jdText, revisionInstruction (optional), previousContent (optional) | structuredContent, atsScore, atsBreakdown |
-| POST /api/approve-resume | company, position, jdText, atsScore, atsBreakdown, structuredContent | id, resumeUrl, notionPageId, hasPdf |
-| GET /api/search-resumes | company | list of resume versions |
+| Method & path | Purpose |
+|---|---|
+| `GET /health` | Which integrations are live vs mocked |
+| `POST /api/auth/signup` · `/login` | Supabase Auth, proxied |
+| `GET/POST/PATCH /api/master-profile` | Structured background |
+| `POST /api/extract-jd` | Clean a scraped page into company / position / JD |
+| `POST /api/rubric` | **Derive the weighted criteria for a JD** |
+| `GET /api/rubric/domains` | Domains with known vocabulary |
+| `POST /api/review-resume` | **Quick review** — score + suggested edits, no rewrite |
+| `POST /api/generate-resume` | **Full tailor** — write/refine against the rubric |
+| `POST /api/approve-resume` | Compile PDF, store version, create + link application |
+| `GET /api/applications` | List / search / filter (`q`, `status`, `domain`) |
+| `GET /api/applications/overview` | Pipeline, funnel, follow-ups due |
+| `GET /api/applications/statuses` | The pipeline vocabulary |
+| `POST/PATCH/DELETE /api/applications[/:id]` | Log, update status, delete |
+| `GET /api/search-resumes` | Stored resume versions |
+| `POST /api/interview-prep` | Questions and focus areas for a role |
+| `GET/POST /api/requisitions` | List / open a role (drafts its rubric) |
+| `GET/PATCH/DELETE /api/requisitions/:id` | Workspace; editing the rubric re-scores everyone |
+| `POST /api/requisitions/:id/candidates` | Add resumes, scored on arrival |
+| `POST /api/requisitions/:id/rescore` | Re-run the batch |
+| `PATCH /api/requisitions/:id/candidates/:cid` | Shortlist / reject |
+
+---
+
+## Tests
+
+```bash
+cd backend && npm test
+```
+
+66 tests across the rubric engine, application memory and the recruiter flow. They pin the stores to their in-memory paths and use no API key, so they run offline and deterministically — and they cover the code path an unconfigured install actually executes.
 
 ---
 
 ## Troubleshooting
 
-- SUPABASE_URL mistakes. Pasting the REST endpoint (ending in /rest/v1/) instead of the base URL is handled for you (the code trims it back to the base).
-- Gemini 429. This is the free tier per minute or per day limit. The backoff retries, then falls back to local generation. Set GEMINI_MODEL to another flash model for a fresh per model quota.
-- "column does not exist". Re-run [backend/db/schema.sql](backend/db/schema.sql). It adds any new columns safely.
-- Port 3000 in use. Kill the old server. In PowerShell: Get-NetTCPConnection -LocalPort 3000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
-- Notion validation error. A property name or type in your database is different. The code targets the schema described above.
+- **`SUPABASE_URL` mistakes.** Pasting the REST endpoint instead of the base URL is handled — the code trims it back.
+- **Gemini 429.** Free-tier per-minute/per-day limit. Backoff retries, then Groq, then local generation.
+- **`column does not exist`.** Re-run [backend/db/schema.sql](backend/db/schema.sql).
+- **Port 3000 in use.** PowerShell: `Get-NetTCPConnection -LocalPort 3000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`
+- **First PDF is slow.** tectonic downloads its package bundle once (1–2 minutes), then compiles take seconds.
 
 ---
 
 ## Roadmap
 
-- Editing Master Data after onboarding (a full experience and projects editor).
-- An optional AI based ATS score alongside the rules based one.
-- Status updates (Applied, Interview, Offer) synced back from Notion.
+Ordered by the open questions from discovery, not by how easy they are:
+
+- **Validate memory-first vs speed-first messaging.** Does *"never lose track of what you applied to"* beat *"tailor in 2 minutes"*? The product is built memory-first; that is a hypothesis, not a finding.
+- **Recruiter interviews.** The recruiter module is built on secondary research and hackathon feedback. `rubricAgreement` exists to make the correlation between rubric ranking and real shortlisting measurable — it needs real recruiters to measure it against.
+- **Domain coverage beyond one data point.** The law example drove the domain-aware design. Whether other non-tech fields hit the same wall is untested.
+- Resume file parsing (PDF/DOCX) for bulk recruiter intake.
+- Status sync back from Notion.
+- Model choice per user, with cost/quality guidance.
 
 ---
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FirSeCV",
+  "name": "JOZY - Jobs Made Easy",
   "version": "1.0.0",
-  "description": "Extract a job description, generate a tailored resume, and track every application.",
+  "description": "Remember every application, and tailor or review a resume against any job description.",
   "permissions": [
     "storage",
     "activeTab",
@@ -16,7 +16,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "FirSeCV"
+    "default_title": "JOZY"
   },
   "side_panel": {
     "default_path": "src/sidepanel/sidepanel.html"

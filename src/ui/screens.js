@@ -9,6 +9,9 @@ import { showScreen, afterLogin } from "../sidepanel/sidepanel.js";
 
 const mount = (name) => document.querySelector(`[data-screen="${name}"].screen`);
 
+// The standalone web app, served by the same backend.
+const WEB_APP_URL = "http://localhost:3000/";
+
 // ===================================================================== auth
 
 export function renderAuth() {
@@ -21,12 +24,12 @@ export function renderAuth() {
   const submit = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Log in");
   const toggle = el("button", { class: "link-btn" }, "New here? Create an account");
   const title = el("h1", { class: "title" }, "Welcome back");
-  const subtitle = el("p", { class: "subtitle" }, "Log in to your FirSeCV account.");
+  const subtitle = el("p", { class: "subtitle" }, "Log in to your JOZY account.");
 
   const setMode = (m) => {
     mode = m;
     title.textContent = m === "login" ? "Welcome back" : "Create your account";
-    subtitle.textContent = m === "login" ? "Log in to your FirSeCV account." : "Sign up to save your resumes and tracker.";
+    subtitle.textContent = m === "login" ? "Log in to your JOZY account." : "Sign up to save your resumes and tracker.";
     submit.textContent = m === "login" ? "Log in" : "Sign up";
     toggle.textContent = m === "login" ? "New here? Create an account" : "Have an account? Log in";
   };
@@ -62,7 +65,7 @@ export function renderAuth() {
 
   root.appendChild(el("div", { class: "stack", style: "margin-top:8px" }, [
     el("div", { class: "brand", style: "justify-content:center" }, [
-      el("img", { src: "../../assets/icons/icon128.png", alt: "FirSeCV Logo", style: "width:40px;height:40px;object-fit:contain" }),
+      el("img", { src: "../../assets/icons/icon128.png", alt: "JOZY Logo", style: "width:40px;height:40px;object-fit:contain" }),
     ]),
     el("div", { class: "stack", style: "text-align:center;gap:2px" }, [title, subtitle]),
     el("div", { class: "card stack" }, [
@@ -84,7 +87,7 @@ export function renderOnboarding() {
 
   root.appendChild(el("div", { class: "stack" }, [
     el("h1", { class: "title" }, "Set up your Master Data"),
-    el("p", { class: "subtitle" }, "Paste your current resume - FirSeCV structures it once, then reuses it for every tailored resume. You can edit anything below."),
+    el("p", { class: "subtitle" }, "Paste your current resume - JOZY structures it once, then reuses it for every tailored resume. You can edit anything below."),
   ]));
 
   const paste = el("textarea", { class: "textarea", placeholder: "Paste your resume text here...", rows: "7" });
@@ -180,11 +183,37 @@ export function renderExtract() {
   const position = el("input", { type: "text", class: "input", placeholder: "Position" });
   const jd = el("textarea", { class: "textarea", rows: "8", placeholder: "The job description will appear here after you extract it - edit freely." });
 
-  const genBtn = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Generate resume");
+  const genBtn = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Full tailor");
+  const reviewBtn = el("button", { class: "btn btn--block btn--lg" }, "Quick review");
   genBtn.disabled = true;
+  reviewBtn.disabled = true;
 
-  const syncGen = () => (genBtn.disabled = !jd.value.trim());
+  const syncGen = () => {
+    const empty = !jd.value.trim();
+    genBtn.disabled = empty;
+    reviewBtn.disabled = empty;
+  };
   jd.addEventListener("input", syncGen);
+
+  // Flexible effort: users told us plainly that not every application deserves
+  // a rewrite. Quick review scores the resume they already have and says what
+  // to change; it never rewrites anything.
+  reviewBtn.addEventListener("click", async () => {
+    store.currentJd = { company: company.value.trim(), position: position.value.trim(), jdText: jd.value.trim() };
+    spinnerButton(reviewBtn, true);
+    renderReviewLoading("Reviewing your resume...");
+    showScreen("review");
+    try {
+      renderQuickReview(await api.reviewResume({ jdText: store.currentJd.jdText }));
+    } catch (err) {
+      toast(/Master Data/.test(err.message || "")
+        ? "Set up your Master Data first - that's the resume being reviewed."
+        : "Review failed - try again", "error");
+      showScreen("extract");
+    } finally {
+      spinnerButton(reviewBtn, false);
+    }
+  });
 
   const extractBtn = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Extract JD from this page");
   extractBtn.addEventListener("click", async () => {
@@ -225,8 +254,8 @@ export function renderExtract() {
   });
 
   root.appendChild(el("div", { class: "stack" }, [
-    el("h1", { class: "title" }, "Tailor a resume"),
-    el("p", { class: "subtitle" }, "Open a job posting, then extract its description. Confirm the details and generate."),
+    el("h1", { class: "title" }, "Match this role"),
+    el("p", { class: "subtitle" }, "Extract the posting, then choose how much effort it deserves - a quick review of the resume you have, or a full tailor."),
   ]));
   root.appendChild(el("div", { class: "card stack" }, [
     extractBtn,
@@ -234,20 +263,98 @@ export function renderExtract() {
     el("div", { class: "field" }, [el("label", {}, "Company"), company]),
     el("div", { class: "field" }, [el("label", {}, "Position"), position]),
     el("div", { class: "field" }, [el("label", {}, "Job description"), jd]),
+    el("p", { class: "subtitle" }, "Quick review checks the resume you already have. Full tailor rewrites it from your Master Data."),
+    reviewBtn,
     genBtn,
   ]));
   revealNav();
+}
+
+// -------------------------------------------------------------- quick review
+
+function renderQuickReview(review) {
+  const root = mount("review");
+  const b = review.atsBreakdown;
+  root.replaceChildren();
+
+  root.appendChild(el("div", { class: "row row--between" }, [
+    el("h1", { class: "title" }, "Quick review"),
+    el("button", { class: "link-btn", onclick: () => showScreen("extract") }, "Back to JD"),
+  ]));
+
+  root.appendChild(el("div", { class: "card row", style: "align-items:flex-start" }, [
+    atsRing(review.atsScore),
+    el("div", { class: "stack", style: "flex:1" }, [
+      el("div", { class: "section-label" }, "Your existing resume, unchanged"),
+      el("span", { class: "subtitle" },
+        `${b.criteria.filter((c) => c.matched).length} of ${b.criteria.length} criteria evidenced.`),
+    ]),
+  ]));
+
+  if (b.mustHaveGaps?.length) {
+    root.appendChild(el("div", { class: "card stack" }, [
+      el("div", { class: "section-label" }, "Hard requirements you don't evidence"),
+      keywordChips(b.mustHaveGaps, "missing"),
+    ]));
+  }
+
+  root.appendChild(el("div", { class: "card stack" }, [
+    el("div", { class: "section-label" }, "What to change"),
+    ...review.suggestions.map((s) => el("div", { class: "stack", style: "gap:2px" }, [
+      el("strong", { style: "font-weight:600" }, s.impact ? `${s.criterion} (+${s.impact})` : s.criterion),
+      el("span", { class: "subtitle" }, s.action),
+      s.where ? el("span", { class: "subtitle" }, `Where: ${s.where}`) : null,
+    ].filter(Boolean))),
+  ]));
+
+  // Reviewing without logging is how an application gets forgotten - offer the
+  // record right here, while the company and role are still on screen.
+  const logBtn = el("button", { class: "btn btn--block btn--lg" }, "Log this application");
+  logBtn.addEventListener("click", async () => {
+    const { company, position, jdText } = store.currentJd;
+    if (!company && !position) return toast("Add the company or role on the previous screen first", "error");
+    spinnerButton(logBtn, true);
+    try {
+      await api.createApplication({ company, position, jdText });
+      toast("Logged - JOZY will remember it", "success");
+      renderHistory();
+      showScreen("history");
+    } catch {
+      toast("Could not log it", "error");
+    } finally {
+      spinnerButton(logBtn, false);
+    }
+  });
+  root.appendChild(logBtn);
+
+  root.appendChild(el("button", {
+    class: "btn btn--primary btn--block btn--lg",
+    onclick: () => {
+      const genFromReview = async () => {
+        renderReviewLoading("Generating your resume...");
+        try {
+          store.currentResume = await api.generateResume({ ...store.currentJd, rubric: review.rubric });
+          reviewChat = [];
+          renderReview();
+        } catch {
+          toast("Generation failed", "error");
+          showScreen("extract");
+        }
+      };
+      genFromReview();
+    },
+  }, "Actually, tailor it fully"));
 }
 
 // ==================================================================== review
 
 let reviewChat = []; // { role: "user" | "system", text } - persists across refines
 
-function renderReviewLoading() {
+function renderReviewLoading(message = "Generating your resume...") {
   const root = mount("review");
   root.replaceChildren(
     el("div", { class: "stack" }, [
-      el("h1", { class: "title" }, "Generating your resume..."),
+      el("h1", { class: "title" }, message),
       el("div", { class: "card" }, [skeleton(6)]),
     ])
   );
@@ -401,20 +508,37 @@ function resumePaper(sc) {
 
 let historyTimer = null;
 
+const STATUS_LABELS = {
+  saved: "Saved", applied: "Applied", screening: "In screening",
+  interview: "Interviewing", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn",
+};
+const STATUS_ORDER = Object.keys(STATUS_LABELS);
+
+/**
+ * The memory screen. It lists *applications*, not resumes, because an
+ * application exists whether or not a resume was ever generated here - and
+ * because remembering the application is the thing people actually needed.
+ */
 export function renderHistory() {
   const root = mount("history");
   root.replaceChildren();
 
-  const search = el("input", { type: "text", class: "input", placeholder: "Search by company..." });
+  const search = el("input", { type: "text", class: "input", placeholder: "Search company, role or notes..." });
   const list = el("div", { class: "stack" });
+  const summary = el("p", { class: "subtitle" });
 
   const load = async (q = "") => {
     list.replaceChildren(skeleton(3));
     try {
-      const rows = await api.searchResumes({ company: q });
-      renderHistoryList(list, rows);
+      const rows = await api.listApplications({ q });
+      const chasing = rows.filter((a) => a.needsFollowUp).length;
+      summary.textContent = rows.length
+        ? `${rows.length} remembered${chasing ? ` - ${chasing} worth chasing` : ""}.`
+        : "";
+      renderApplicationList(list, rows);
     } catch {
-      toast("Could not load history", "error");
+      toast("Could not load your applications", "error");
+      list.replaceChildren(el("div", { class: "empty" }, [el("p", {}, "Couldn't reach the backend.")]));
     }
   };
 
@@ -423,40 +547,122 @@ export function renderHistory() {
     historyTimer = setTimeout(() => load(search.value.trim()), 250);
   });
 
-  const header = el("h1", { class: "title" }, "Application history");
-  getSession().then(s => {
-    if (s?.user?.email) header.textContent = `History (${s.user.email})`;
+  const header = el("h1", { class: "title" }, "Your applications");
+  getSession().then((s) => {
+    if (s?.user?.email) header.title = s.user.email;
   });
 
   root.appendChild(header);
+  root.appendChild(summary);
   root.appendChild(el("div", { class: "field" }, [search]));
   root.appendChild(list);
   load();
   revealNav();
 }
 
-function renderHistoryList(list, rows) {
+function renderApplicationList(list, rows) {
   if (!rows.length) {
     list.replaceChildren(el("div", { class: "empty" }, [
-      el("p", {}, "No applications yet. Approve a resume to track it here."),
+      el("p", {}, "No applications yet."),
+      el("p", { class: "subtitle" }, "Tailor or review a resume, then log it - or add past applications in the web app."),
     ]));
     return;
   }
-  list.replaceChildren(...rows.map((r) => {
-    const card = el("div", { class: "card row row--between", style: "cursor:pointer" }, [
-      el("div", { class: "stack", style: "gap:2px" }, [
-        el("strong", {}, r.company || "-"),
-        el("span", { class: "subtitle" }, r.position || ""),
-        el("span", { class: "subtitle" }, formatDate(r.appliedAt)),
+  list.replaceChildren(...rows.map((a) => {
+    const card = el("div", {
+      class: "card row row--between",
+      style: `cursor:pointer${a.needsFollowUp ? ";box-shadow:inset 3px 0 0 var(--amber)" : ""}`,
+    }, [
+      el("div", { class: "stack", style: "gap:2px;min-width:0" }, [
+        el("strong", {}, a.company || "-"),
+        el("span", { class: "subtitle" }, a.position || ""),
+        el("span", { class: "subtitle" },
+          a.needsFollowUp ? a.followUpReason : formatDate(a.appliedAt)),
       ]),
       el("div", { class: "stack", style: "align-items:flex-end;gap:6px" }, [
-        scoreBadge(r.atsScore),
+        el("span", { class: "badge" }, STATUS_LABELS[a.status] || a.status),
         el("span", { class: "link-btn" }, "Open"),
       ]),
     ]);
-    card.addEventListener("click", () => renderResumeDetail(r));
+    card.addEventListener("click", () => renderApplicationDetail(a));
     return card;
   }));
+}
+
+/** One application: where it stands, the timeline, and the resume that was sent. */
+async function renderApplicationDetail(a) {
+  const root = mount("history");
+  root.replaceChildren(
+    el("div", { class: "row row--between" }, [
+      el("button", { class: "link-btn", onclick: () => renderHistory() }, "Back"),
+      el("span", { class: "badge" }, STATUS_LABELS[a.status] || a.status),
+    ]),
+    el("div", { class: "stack", style: "gap:2px" }, [
+      el("h1", { class: "title" }, a.position || "Application"),
+      el("span", { class: "subtitle" }, [a.company, formatDate(a.appliedAt)].filter(Boolean).join("  |  ")),
+    ]),
+  );
+
+  if (a.needsFollowUp) {
+    root.appendChild(el("div", { class: "card stack" }, [
+      el("div", { class: "section-label" }, "Worth chasing"),
+      el("span", { class: "subtitle" }, a.followUpReason),
+    ]));
+  }
+
+  // Move it along the pipeline without leaving the panel.
+  root.appendChild(el("div", { class: "card stack" }, [
+    el("div", { class: "section-label" }, "Where it stands"),
+    el("div", { class: "row", style: "flex-wrap:wrap;gap:6px" }, STATUS_ORDER.map((s) => {
+      const btn = el("button", { class: `btn ${s === a.status ? "btn--primary" : ""}` }, STATUS_LABELS[s]);
+      btn.addEventListener("click", async () => {
+        if (s === a.status) return;
+        spinnerButton(btn, true);
+        try {
+          renderApplicationDetail(await api.updateApplication(a.id, { status: s }));
+          toast(`Moved to ${STATUS_LABELS[s]}`, "success");
+        } catch {
+          toast("Could not update", "error");
+          spinnerButton(btn, false);
+        }
+      });
+      return btn;
+    })),
+  ]));
+
+  // The resume actually sent, if one came from here.
+  const versions = await api.searchResumes({ company: a.company }).catch(() => []);
+  const sent = versions.find((v) => v.id === a.resumeVersionId) || null;
+  if (sent) {
+    root.appendChild(el("div", { class: "card stack" }, [
+      el("div", { class: "row row--between" }, [
+        el("div", { class: "section-label" }, "The resume you sent"),
+        scoreBadge(sent.atsScore),
+      ]),
+      el("button", { class: "btn btn--block", onclick: () => downloadResume(sent, null) },
+        sent.hasPdf ? "Download PDF" : "Download resume"),
+      el("button", {
+        class: "btn btn--block",
+        onclick: () => renderInterviewPrep(
+          { company: a.company, position: a.position, jdText: a.jdText, structuredContent: sent.structuredContent },
+          "history", () => renderApplicationDetail(a)),
+      }, "Interview prep for this role"),
+    ]));
+    root.appendChild(resumePaper(sent.structuredContent));
+  } else {
+    root.appendChild(el("div", { class: "card subtitle" },
+      "No resume from JOZY is linked to this application."));
+  }
+
+  if (a.statusHistory?.length) {
+    root.appendChild(el("div", { class: "card stack" }, [
+      el("div", { class: "section-label" }, "Timeline"),
+      ...[...a.statusHistory].reverse().map((h) => el("div", { class: "stack", style: "gap:1px" }, [
+        el("strong", { style: "font-weight:600" }, STATUS_LABELS[h.status] || h.status),
+        el("span", { class: "subtitle" }, [formatDate(h.at), h.note].filter(Boolean).join(" - ")),
+      ])),
+    ]));
+  }
 }
 
 function formatDate(iso) {
@@ -470,67 +676,6 @@ function scoreBadge(score) {
     score != null ? `ATS ${score}` : "ATS -");
 }
 
-// ------------------------------------------------------------- resume detail
-
-function renderResumeDetail(r) {
-  const root = mount("history");
-  root.replaceChildren();
-
-  root.appendChild(el("div", { class: "row row--between" }, [
-    el("button", { class: "link-btn", onclick: () => { renderHistory(); } }, "Back to History"),
-    scoreBadge(r.atsScore),
-  ]));
-  root.appendChild(el("div", { class: "stack", style: "gap:2px" }, [
-    el("h1", { class: "title" }, r.position || "Resume"),
-    el("span", { class: "subtitle" }, [r.company, formatDate(r.appliedAt)].filter(Boolean).join("  |  ")),
-  ]));
-
-  // ATS breakdown (same as the approval screen), when it was stored
-  if (r.atsBreakdown) {
-    root.appendChild(el("div", { class: "card row", style: "align-items:flex-start" }, [
-      atsRing(r.atsScore),
-      el("div", { class: "stack", style: "flex:1" }, [
-        el("div", { class: "section-label" }, "Matched keywords"),
-        keywordChips(r.atsBreakdown.matched, "matched"),
-        el("div", { class: "section-label" }, "Missing keywords"),
-        keywordChips(r.atsBreakdown.missing, "missing"),
-      ]),
-    ]));
-    if (r.atsBreakdown.notes?.length) {
-      root.appendChild(el("div", { class: "card stack" }, [
-        el("div", { class: "section-label" }, "ATS notes"),
-        el("ul", { style: "margin:0;padding-left:18px;color:var(--muted);font-size:12px" },
-          r.atsBreakdown.notes.map((n) => el("li", {}, n))),
-      ]));
-    }
-  }
-
-  // Download / open actions
-  const actions = el("div", { class: "row" });
-  const dl = el("button", { class: "btn btn--primary btn--block btn--lg" }, r.hasPdf ? "Download PDF" : "Download resume");
-  dl.addEventListener("click", () => downloadResume(r, dl));
-  actions.appendChild(dl);
-  if (r.hasPdf && /^https?:/.test(r.resumeUrl || "")) {
-    actions.appendChild(el("button", { class: "btn btn--lg", onclick: () => window.open(r.resumeUrl, "_blank") }, "Open in tab"));
-  }
-  root.appendChild(actions);
-
-  root.appendChild(el("button", {
-    class: "btn btn--block btn--lg",
-    onclick: () => renderInterviewPrep(
-      { company: r.company, position: r.position, jdText: r.jdText, structuredContent: r.structuredContent },
-      "history", () => renderResumeDetail(r)),
-  }, "Interview prep for this role"));
-
-  // Resume preview exactly as approved
-  if (r.structuredContent) {
-    root.appendChild(resumePaper(r.structuredContent));
-  } else {
-    root.appendChild(el("div", { class: "card subtitle" }, "Preview wasn't stored for this earlier entry - the file is still downloadable above."));
-  }
-}
-
-// -------------------------------------------------------- interview prep
 
 async function renderInterviewPrep(ctx, mountName, onBack) {
   const root = mount(mountName);
@@ -622,10 +767,13 @@ let navWired = false;
 export function revealNav() {
   const newBtn = document.getElementById("nav-new");
   const histBtn = document.getElementById("nav-history");
-  if (newBtn) newBtn.hidden = false;
-  if (histBtn) histBtn.hidden = false;
+  const webBtn = document.getElementById("nav-web");
+  for (const b of [newBtn, histBtn, webBtn]) if (b) b.hidden = false;
   if (navWired) return;
   navWired = true;
   newBtn?.addEventListener("click", () => { renderExtract(); showScreen("extract"); });
   histBtn?.addEventListener("click", () => { renderHistory(); showScreen("history"); });
+  // The panel is one way into JOZY, not the whole of it - the dashboard,
+  // backfilling past applications and the recruiter side live in the web app.
+  webBtn?.addEventListener("click", () => chrome.tabs.create({ url: WEB_APP_URL }));
 }

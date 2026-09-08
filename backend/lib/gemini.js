@@ -28,7 +28,7 @@ async function withFallback(label, realFn, localFn) {
     try {
       return { value: await realFn(), source: "llm" };
     } catch (e) {
-      console.warn(`[FirSeCV] LLM ${label} fell back to local: ${e.message}`);
+      console.warn(`[JOZY] LLM ${label} fell back to local: ${e.message}`);
     }
   }
   return { value: await localFn(), source: "local" };
@@ -78,10 +78,12 @@ function extractJdLocal(rawPageText = "", pageUrl = "") {
 }
 
 // ---- generate tailored resume content from a profile + JD ----
-export async function generateResume({ profile = {}, jdText = "", revisionInstruction = "", previousContent = null }) {
+export async function generateResume({ profile = {}, jdText = "", revisionInstruction = "", previousContent = null, rubric = null }) {
   const { value } = await withFallback("generateResume",
-    () => generateResumeReal({ profile, jdText, revisionInstruction, previousContent }),
-    () => (revisionInstruction && previousContent) ? applyRevision(previousContent, revisionInstruction) : buildResume(profile, jdText));
+    () => generateResumeReal({ profile, jdText, revisionInstruction, previousContent, rubric }),
+    () => (revisionInstruction && previousContent)
+      ? applyRevision(previousContent, revisionInstruction)
+      : buildResume(profile, jdText, rubric));
   return value;
 }
 
@@ -169,9 +171,13 @@ function contactLine(p) {
     .filter(Boolean).join("  |  ");
 }
 
-function buildResume(profile, jdText) {
-  const kws = keywordsFrom(jdText, 14);
-  const kwSet = new Set(kws);
+function buildResume(profile, jdText, rubric = null) {
+  // Prefer the rubric's terms - they are weighted and domain-aware - and fall
+  // back to raw keyword frequency only when no rubric was derived.
+  const kws = rubric?.criteria?.length
+    ? [...new Set(rubric.criteria.flatMap((c) => c.terms || [c.label]))].slice(0, 14)
+    : keywordsFrom(jdText, 14);
+  const kwSet = new Set(kws.map((k) => String(k).toLowerCase()));
   const experience = (profile.experience?.length ? profile.experience : [{
     company: "Recent Employer", role: "Software Engineer", dates: "2022 - Present",
     bullets: ["Delivered features across the stack, collaborating with product and design.",
@@ -232,13 +238,22 @@ function applyRevision(content, instruction) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function callLlmJson(prompt, { retries = 3 } = {}) {
+/** Is any model configured? Callers use this to decide whether to try one. */
+export const hasLlm = () => Boolean(live.gemini || live.groq);
+
+/**
+ * The `llm` seam the rubric engine expects: a prompt in, parsed JSON out, or
+ * null when no model is configured so the caller takes its local path.
+ */
+export const jsonPrompt = () => (hasLlm() ? (prompt) => callLlmJson(prompt) : null);
+
+export async function callLlmJson(prompt, { retries = 3 } = {}) {
   let lastError;
   if (live.gemini) {
     try {
       return await callGeminiJson(prompt, { retries });
     } catch (e) {
-      console.warn(`[FirSeCV] Gemini failed, checking fallback: ${e.message}`);
+      console.warn(`[JOZY] Gemini failed, checking fallback: ${e.message}`);
       lastError = e;
     }
   }
@@ -246,7 +261,7 @@ async function callLlmJson(prompt, { retries = 3 } = {}) {
     try {
       return await callGroqJson(prompt, { retries });
     } catch (e) {
-      console.warn(`[FirSeCV] Groq failed: ${e.message}`);
+      console.warn(`[JOZY] Groq failed: ${e.message}`);
       lastError = e;
     }
   }
@@ -356,15 +371,26 @@ async function extractJdReal(rawPageText, pageUrl) {
   return { company: out.company || "Unknown Company", position: out.position || "Unknown Role", jdText: out.jdText || "" };
 }
 
-async function generateResumeReal({ profile, jdText, revisionInstruction, previousContent }) {
+async function generateResumeReal({ profile, jdText, revisionInstruction, previousContent, rubric }) {
   const rules =
     `Rules: use ONLY facts present in the master profile - never invent employers, dates, or metrics. ` +
     `Select and reorder the most JD-relevant experience and projects; rewrite bullets to emphasise JD-aligned impact. ` +
     `Return ONLY JSON in this shape:\n${RESUME_SHAPE}`;
+
+  // Telling the writer exactly what the scorer rewards - and what it weights -
+  // is what stops the output being "generically polished", the specific
+  // complaint users had about existing AI resume tools.
+  const target = rubric?.criteria?.length
+    ? `\n\nThis resume will be scored against these weighted criteria. Surface genuine evidence for the ` +
+      `heaviest ones first, using the candidate's real experience. Do NOT claim a criterion the profile ` +
+      `does not support - leaving it unmet is correct when it is not true.\n` +
+      rubric.criteria.map((c) => `- ${c.label} (${c.weight} pts${c.mustHave ? ", hard requirement" : ""})`).join("\n")
+    : "";
+
   const prompt = revisionInstruction && previousContent
     ? `Apply this change to the resume JSON and change nothing else: "${revisionInstruction}".\n` +
-      `${rules}\n\nCURRENT RÉSUMÉ:\n${JSON.stringify(previousContent)}\n\nJOB DESCRIPTION:\n${jdText}`
-    : `Create a resume tailored to the job description from the master profile.\n${rules}\n\n` +
+      `${rules}${target}\n\nCURRENT RÉSUMÉ:\n${JSON.stringify(previousContent)}\n\nJOB DESCRIPTION:\n${jdText}`
+    : `Create a resume tailored to the job description from the master profile.\n${rules}${target}\n\n` +
       `MASTER PROFILE:\n${JSON.stringify(profile)}\n\nJOB DESCRIPTION:\n${jdText}`;
   return callLlmJson(prompt);
 }

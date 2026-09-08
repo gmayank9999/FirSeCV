@@ -64,8 +64,10 @@ function initLogout() {
   document.getElementById("logout")?.addEventListener("click", async () => {
     await clearSession();
     setLoggedInChrome(false);
-    document.getElementById("nav-new").hidden = true;
-    document.getElementById("nav-history").hidden = true;
+    for (const id of ["nav-new", "nav-history", "nav-web"]) {
+      const btn = document.getElementById(id);
+      if (btn) btn.hidden = true;
+    }
     renderAuth();
     showScreen("auth");
   });
