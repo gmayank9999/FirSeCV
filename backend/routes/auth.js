@@ -24,6 +24,17 @@ authRoutes.get("/verified", (req, res) => {
   `);
 });
 
+// A server that cannot reach its auth provider is unavailable (503), not a
+// client sending bad credentials (400/401). Conflating the two is what made a
+// deleted Supabase project look like a rejected signup.
+function fail(res, e, fallbackStatus, fallbackError) {
+  if (e.code === "auth_unavailable") {
+    console.error("[JOZY] auth unavailable:", e.message);
+    return res.status(503).json({ error: "auth_unavailable", message: e.message });
+  }
+  res.status(fallbackStatus).json({ error: fallbackError, message: e.message });
+}
+
 // POST /api/auth/signup — { email, password }
 authRoutes.post("/signup", async (req, res) => {
   try {
@@ -33,7 +44,7 @@ authRoutes.post("/signup", async (req, res) => {
     const out = sessionShape(data);
     res.json({ ...out, needsConfirmation: !out.accessToken });
   } catch (e) {
-    res.status(400).json({ error: "signup_failed", message: e.message });
+    fail(res, e, 400, "signup_failed");
   }
 });
 
@@ -45,6 +56,6 @@ authRoutes.post("/login", async (req, res) => {
     const data = await auth.signIn(email, password);
     res.json(sessionShape(data));
   } catch (e) {
-    res.status(401).json({ error: "login_failed", message: e.message });
+    fail(res, e, 401, "login_failed");
   }
 });
