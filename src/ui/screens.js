@@ -23,6 +23,7 @@ export function renderAuth() {
   const password = el("input", { type: "password", class: "input", placeholder: "Password" });
   const submit = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Log in");
   const toggle = el("button", { class: "link-btn" }, "New here? Create an account");
+  const forgot = el("button", { class: "link-btn" }, "Forgot password?");
   const title = el("h1", { class: "title" }, "Welcome back");
   const subtitle = el("p", { class: "subtitle" }, "Log in to your JOZY account.");
 
@@ -32,9 +33,11 @@ export function renderAuth() {
     subtitle.textContent = m === "login" ? "Log in to your JOZY account." : "Sign up to save your resumes and tracker.";
     submit.textContent = m === "login" ? "Log in" : "Sign up";
     toggle.textContent = m === "login" ? "New here? Create an account" : "Have an account? Log in";
+    forgot.hidden = m !== "login";
   };
 
   toggle.addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
+  forgot.addEventListener("click", () => renderForgotPassword());
 
   const doAuth = async () => {
     const e = email.value.trim();
@@ -72,9 +75,47 @@ export function renderAuth() {
       el("div", { class: "field" }, [el("label", {}, "Email"), email]),
       el("div", { class: "field" }, [el("label", {}, "Password"), password]),
       submit,
-      el("div", { class: "row", style: "justify-content:center" }, [toggle]),
+      el("div", { class: "row row--between" }, [toggle, forgot]),
     ]),
   ]));
+}
+
+/** A reset email opens its secure completion page in JOZY's web app. Chrome
+ * side panels cannot be a stable target for email links, so this keeps the
+ * recovery flow reliable while still starting it from the extension. */
+export function renderForgotPassword() {
+  const root = mount("auth");
+  root.replaceChildren();
+  const email = el("input", { type: "email", class: "input", placeholder: "you@example.com" });
+  const send = el("button", { class: "btn btn--primary btn--block btn--lg" }, "Send reset link");
+  send.addEventListener("click", async () => {
+    if (!email.value.trim()) return toast("Enter your email address", "error");
+    spinnerButton(send, true);
+    try {
+      await api.requestPasswordReset(email.value.trim());
+      toast("If that account exists, a reset link is on its way.", "success");
+      chrome.tabs.create({ url: `${WEB_APP_URL}#/dashboard` });
+      renderAuth();
+    } catch (err) {
+      toast(err.message || "Could not send a reset link", "error");
+    } finally {
+      spinnerButton(send, false);
+    }
+  });
+  root.appendChild(el("div", { class: "stack", style: "margin-top:8px" }, [
+    el("div", { class: "stack", style: "text-align:center;gap:2px" }, [
+      el("h1", { class: "title" }, "Reset your password"),
+      el("p", { class: "subtitle" }, "We'll email a secure reset link to you."),
+    ]),
+    el("div", { class: "card stack" }, [
+      el("div", { class: "field" }, [el("label", {}, "Email"), email]),
+      send,
+      el("div", { class: "row", style: "justify-content:center" }, [
+        el("button", { class: "link-btn", onclick: () => renderAuth() }, "Back to log in"),
+      ]),
+    ]),
+  ]));
+  email.focus();
 }
 
 // ================================================================ onboarding

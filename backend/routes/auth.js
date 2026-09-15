@@ -59,3 +59,30 @@ authRoutes.post("/login", async (req, res) => {
     fail(res, e, 401, "login_failed");
   }
 });
+
+// Always phrase a successful request generically on the client. Supabase
+// deliberately does not disclose whether an email belongs to an account.
+authRoutes.post("/forgot-password", async (req, res) => {
+  try {
+    const { email = "" } = req.body || {};
+    if (!email.trim()) return res.status(400).json({ error: "email_required", message: "Enter your email address." });
+    await auth.requestPasswordReset(email.trim());
+    res.json({ ok: true });
+  } catch (e) {
+    fail(res, e, 400, "password_reset_failed");
+  }
+});
+
+// The recovery access token arrives in the URL fragment on /reset-password.
+// It is posted directly to this one-purpose endpoint and never persisted.
+authRoutes.post("/reset-password", async (req, res) => {
+  try {
+    const { accessToken = "", password = "" } = req.body || {};
+    if (!accessToken) return res.status(400).json({ error: "invalid_recovery", message: "This reset link is missing or has expired." });
+    if (password.length < 6) return res.status(400).json({ error: "weak_password", message: "Password must be at least 6 characters." });
+    await auth.resetPassword(accessToken, password);
+    res.json({ ok: true });
+  } catch (e) {
+    fail(res, e, 400, "password_reset_failed");
+  }
+});

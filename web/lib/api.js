@@ -58,6 +58,9 @@ const qs = (params) => {
 // ---- auth ----
 export const signup = (email, password) => req("/api/auth/signup", { method: "POST", body: { email, password }, auth: false });
 export const login = (email, password) => req("/api/auth/login", { method: "POST", body: { email, password }, auth: false });
+export const requestPasswordReset = (email) => req("/api/auth/forgot-password", { method: "POST", body: { email }, auth: false });
+export const resetPassword = (accessToken, password) =>
+  req("/api/auth/reset-password", { method: "POST", body: { accessToken, password }, auth: false });
 export const health = () => req("/health", { auth: false });
 
 // ---- master profile ----

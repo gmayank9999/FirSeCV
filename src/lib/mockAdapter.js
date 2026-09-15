@@ -145,6 +145,10 @@ export async function signup(email) {
   await delay(300, 600);
   return { accessToken: "mock-token", user: { id: "mock-user", email }, needsConfirmation: false };
 }
+export async function requestPasswordReset() {
+  await delay(250, 450);
+  return { ok: true };
+}
 
 export async function getMasterProfile() {
   return getProfile();

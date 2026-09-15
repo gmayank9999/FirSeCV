@@ -108,6 +108,33 @@ export async function signIn(email, password) {
   return data; // { access_token, refresh_token, user }
 }
 
+/** Send a password-recovery email. The reset is completed in the web app,
+ * because an email link cannot reliably return to a Chrome side panel. */
+export async function requestPasswordReset(email) {
+  const redirectTo = `http://localhost:${config.port}/reset-password`;
+  const res = await authFetch("/auth/v1/recover", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ email, options: { redirectTo } }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(readErr(data, res.status));
+  return data;
+}
+
+/** A recovery link supplies a short-lived access token. Exchange it only for
+ * the requested password update; never store this token on the server. */
+export async function resetPassword(accessToken, password) {
+  const res = await authFetch("/auth/v1/user", {
+    method: "PUT",
+    headers: { ...authHeaders(), Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(readErr(data, res.status));
+  return data;
+}
+
 // Resolve an access token to a user id (verified against Supabase). Falls back
 // to the demo user when auth is off or the token is missing/invalid. Cached
 // briefly to avoid a network round trip on every request.

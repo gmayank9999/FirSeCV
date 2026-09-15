@@ -2,7 +2,7 @@
 
 import * as api from "./lib/api.js";
 import { el, toast, skeleton } from "./lib/ui.js";
-import { renderAuth } from "./views/auth.js";
+import { renderAuth, renderRecoveryPassword } from "./views/auth.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderApplications, renderApplicationDetail } from "./views/applications.js";
 import { renderMatch } from "./views/match.js";
@@ -145,6 +145,27 @@ function showAuth() {
   renderAuth(host, enterApp);
 }
 
+function recoveryToken() {
+  // Supabase returns recovery credentials in a URL fragment, so they are not
+  // sent to the server with the page request or stored in browser history.
+  const params = new URLSearchParams(location.hash.replace(/^#/, ""));
+  return location.pathname === "/reset-password" && params.get("type") === "recovery"
+    ? params.get("access_token")
+    : null;
+}
+
+function showRecoveryPassword(accessToken) {
+  document.getElementById("boot").hidden = true;
+  document.getElementById("app").hidden = true;
+  const host = document.getElementById("auth");
+  host.hidden = false;
+  renderRecoveryPassword(host, accessToken, () => {
+    api.session.clear();
+    history.replaceState(null, "", "/#/dashboard");
+    showAuth();
+  });
+}
+
 function initLogout() {
   document.getElementById("logout").addEventListener("click", () => {
     api.session.clear();
@@ -159,6 +180,12 @@ async function boot() {
   initTheme();
   initLogout();
   window.addEventListener("hashchange", route);
+
+  const token = recoveryToken();
+  if (token) {
+    showRecoveryPassword(token);
+    return;
+  }
 
   // If the backend runs without Supabase it serves a shared demo user and never
   // requires a login - so don't put an auth wall in front of a server that has

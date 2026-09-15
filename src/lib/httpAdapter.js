@@ -31,6 +31,8 @@ export const signup = (email, password) =>
   req("/api/auth/signup", { method: "POST", body: { email, password }, auth: false });
 export const login = (email, password) =>
   req("/api/auth/login", { method: "POST", body: { email, password }, auth: false });
+export const requestPasswordReset = (email) =>
+  req("/api/auth/forgot-password", { method: "POST", body: { email }, auth: false });
 
 export const getMasterProfile = () => req("/api/master-profile");
 export const saveMasterProfile = (input) => req("/api/master-profile", { method: "POST", body: input });
