@@ -166,11 +166,18 @@ function summarizeParsed(d) {
 
 async function saveOnboarding() {
   if (!onboardingDraft.fullName) return toast("Add your name to continue", "error");
-  await setProfile(onboardingDraft);
-  toast("Master Data saved", "success");
-  renderExtract();
-  showScreen("extract");
-  revealNav();
+  try {
+    // Parsing saves an initial draft on the server. Generation also happens
+    // there, so the reviewed version must be saved there too.
+    const saved = await api.updateMasterProfile(onboardingDraft);
+    await setProfile(saved || onboardingDraft);
+    toast("Master Data saved", "success");
+    renderExtract();
+    showScreen("extract");
+    revealNav();
+  } catch (err) {
+    toast(err.message || "Could not save your Master Data", "error");
+  }
 }
 
 // =================================================================== extract

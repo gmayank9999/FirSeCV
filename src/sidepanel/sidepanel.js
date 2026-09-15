@@ -1,7 +1,8 @@
 // Side panel entry point: theme, router, auth, and boot logic.
 // Each screen is a <section data-screen="NAME"> toggled via `hidden`.
 
-import { getProfile, getTheme, setTheme, getSession, clearSession } from "../lib/store.js";
+import { getProfile, setProfile, getTheme, setTheme, getSession, clearSession } from "../lib/store.js";
+import * as api from "../lib/api.js";
 import { renderAuth, renderOnboarding, renderExtract, revealNav } from "../ui/screens.js";
 
 const SCREENS = ["auth", "onboarding", "extract", "review", "history"];
@@ -49,7 +50,17 @@ function setLoggedInChrome(on) {
 // Called after a successful login/signup: decide onboarding vs main app.
 export async function afterLogin() {
   setLoggedInChrome(true);
-  const profile = await getProfile();
+  // The extension is a client of the same account as the web app. Prefer the
+  // server copy instead of treating chrome.storage as a second profile DB.
+  let profile = null;
+  try {
+    profile = await api.getMasterProfile();
+    if (profile) await setProfile(profile);
+  } catch (err) {
+    // A 404 is the expected first-visit response. Keep a cache only when the
+    // server is temporarily unreachable, so an active session can continue.
+    if (!/404/.test(err?.message || "")) profile = await getProfile();
+  }
   if (!profile) {
     renderOnboarding();
     showScreen("onboarding");

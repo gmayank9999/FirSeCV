@@ -55,6 +55,9 @@ function importCard() {
 function profileEditor(profile) {
   const draft = JSON.parse(JSON.stringify(profile));
   draft.links = draft.links || { linkedin: "", github: "", portfolio: "" };
+  for (const key of ["experience", "projects", "education", "skills", "certifications", "achievements"]) {
+    draft[key] = Array.isArray(draft[key]) ? draft[key] : [];
+  }
 
   const save = el("button", { class: "btn btn--primary" }, "Save profile");
   save.addEventListener("click", async () => {
@@ -90,11 +93,17 @@ function profileEditor(profile) {
     ]),
 
     summaryCard(draft),
-    listSection("Experience", draft.experience, (e) => `${e.role || "Role"} · ${e.company || "Company"}`, (e) => e.dates, (e) => e.bullets),
-    listSection("Projects", draft.projects, (p) => p.name || "Project", (p) => p.tech, (p) => p.bullets),
-    listSection("Education", draft.education, (ed) => ed.institution || "Institution", (ed) => ed.dates, () => null,
-      (ed) => [ed.degree, ed.field].filter(Boolean).join(", ")),
+    collectionSection("Experience", draft.experience, [["Role", "role"], ["Company", "company"], ["Dates", "dates"]],
+      () => ({ role: "", company: "", dates: "", bullets: [] }), true),
+    collectionSection("Projects", draft.projects, [["Project name", "name"], ["Technologies", "tech"]],
+      () => ({ name: "", tech: "", bullets: [] }), true),
+    collectionSection("Education", draft.education, [["Institution", "institution"], ["Degree", "degree"], ["Field of study", "field"], ["Dates", "dates"]],
+      () => ({ institution: "", degree: "", field: "", dates: "" })),
     skillsSection(draft),
+    collectionSection("Certifications", draft.certifications, [["Certification", "name"], ["Issuer / year", "details"]],
+      () => ({ name: "", details: "" })),
+    collectionSection("Achievements", draft.achievements, [["Achievement", "text"]], () => ({ text: "" })),
+    el("div", { class: "row", style: "justify-content:flex-end" }, [save]),
   ]);
 }
 
@@ -115,44 +124,68 @@ function summaryCard(d) {
   ]);
 }
 
-/** Read-only rendering of the parsed sections, with inline bullet editing. */
-function listSection(heading, items = [], title, meta, bullets, sub) {
-  if (!items.length) {
-    return el("div", { class: "card" }, [
-      el("div", { class: "section-label" }, heading),
-      el("p", { class: "subtitle" }, `No ${heading.toLowerCase()} captured.`),
-    ]);
-  }
+/** Edit a collection locally; Save profile is the single durable action. */
+function collectionSection(heading, items, fields, makeItem, hasBullets = false) {
+  const body = el("div", { class: "stack stack--tight" });
+  const draw = () => body.replaceChildren(...items.map((item, index) => {
+    const inputs = fields.map(([label, key]) => {
+      const input = el("input", { class: "input input--sm", value: item[key] || "", placeholder: label });
+      input.addEventListener("input", () => { item[key] = input.value; });
+      return el("div", { class: "field" }, [el("label", {}, label), input]);
+    });
+    const bulletField = hasBullets ? (() => {
+      const area = el("textarea", { class: "textarea", rows: "4", value: (item.bullets || []).join("\n"), placeholder: "One accomplishment per line" });
+      area.addEventListener("input", () => { item.bullets = area.value.split("\n").map((b) => b.trim()).filter(Boolean); });
+      return el("div", { class: "field" }, [el("label", {}, "Accomplishments"), area]);
+    })() : null;
+    return el("div", { class: "card card--flat card--pad-sm stack stack--tight" }, [
+      el("div", { class: "row", style: "justify-content:flex-end" }, [
+        el("button", { class: "btn btn--sm btn--danger", type: "button", onclick: () => { items.splice(index, 1); draw(); } }, "Remove"),
+      ]),
+      el("div", { class: "grid grid--split" }, inputs),
+      bulletField,
+    ].filter(Boolean));
+  }));
+  draw();
   return el("div", { class: "card" }, [
-    el("div", { class: "section-label" }, heading),
-    ...items.map((it) => el("div", { class: "card card--flat card--pad-sm" }, [
-      el("div", { class: "row row--between row--wrap" }, [
-        el("strong", {}, title(it)),
-        meta(it) ? el("span", { class: "subtitle" }, meta(it)) : null,
-      ].filter(Boolean)),
-      sub && sub(it) ? el("span", { class: "subtitle" }, sub(it)) : null,
-      bullets(it)?.length ? el("ul", { class: "subtitle" }, bullets(it).map((b) => el("li", {}, b))) : null,
-    ].filter(Boolean))),
+    el("div", { class: "row row--between row--wrap" }, [
+      el("div", { class: "stack stack--tight" }, [
+        el("div", { class: "section-label" }, heading),
+        el("span", { class: "subtitle" }, items.length ? "Edit the facts tailoring can use." : `No ${heading.toLowerCase()} yet.`),
+      ]),
+      el("button", { class: "btn btn--sm", type: "button", onclick: () => { items.push(makeItem()); draw(); } }, `Add ${heading.slice(0, -1)}`),
+    ]),
+    body,
   ]);
 }
 
 function skillsSection(draft) {
   const groups = draft.skills || [];
-  if (!groups.length) {
-    return el("div", { class: "card" }, [
-      el("div", { class: "section-label" }, "Skills"),
-      el("p", { class: "subtitle" }, "No skills captured."),
+  const body = el("div", { class: "stack stack--tight" });
+  const draw = () => body.replaceChildren(...groups.map((g, index) => {
+    const category = el("input", { class: "input input--sm", value: g.category || "", placeholder: "Category, e.g. Tools" });
+    const items = el("input", { class: "input input--sm", value: (g.items || []).join(", "), placeholder: "Skills, separated by commas" });
+    category.addEventListener("input", () => { g.category = category.value; });
+    items.addEventListener("input", () => { g.items = items.value.split(",").map((s) => s.trim()).filter(Boolean); });
+    return el("div", { class: "card card--flat card--pad-sm" }, [
+      el("div", { class: "grid grid--split" }, [
+        el("div", { class: "field" }, [el("label", {}, "Category"), category]),
+        el("div", { class: "field" }, [el("label", {}, "Skills"), items]),
+      ]),
+      el("div", { class: "row", style: "justify-content:flex-end;margin-top:8px" }, [
+        el("button", { class: "btn btn--sm btn--danger", type: "button", onclick: () => { groups.splice(index, 1); draw(); } }, "Remove"),
+      ]),
     ]);
-  }
+  }));
+  draw();
   return el("div", { class: "card" }, [
-    el("div", { class: "section-label" }, "Skills"),
-    ...groups.map((g) => {
-      const input = el("input", { class: "input input--sm", value: (g.items || []).join(", ") });
-      input.addEventListener("input", () => {
-        g.items = input.value.split(",").map((s) => s.trim()).filter(Boolean);
-      });
-      return el("div", { class: "field" }, [el("label", {}, g.category || "Skills"), input]);
-    }),
-    el("p", { class: "subtitle" }, "Edits here are saved with the Save profile button above."),
+    el("div", { class: "row row--between row--wrap" }, [
+      el("div", { class: "stack stack--tight" }, [
+        el("div", { class: "section-label" }, "Skills"),
+        el("span", { class: "subtitle" }, "Use categories to keep a tailored resume readable."),
+      ]),
+      el("button", { class: "btn btn--sm", type: "button", onclick: () => { groups.push({ category: "Skills", items: [] }); draw(); } }, "Add category"),
+    ]),
+    body,
   ]);
 }
