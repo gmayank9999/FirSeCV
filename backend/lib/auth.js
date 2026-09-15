@@ -112,10 +112,13 @@ export async function signIn(email, password) {
  * because an email link cannot reliably return to a Chrome side panel. */
 export async function requestPasswordReset(email) {
   const redirectTo = `http://localhost:${config.port}/reset-password`;
-  const res = await authFetch("/auth/v1/recover", {
+  // GoTrue reads redirect_to from the query string. Sending an SDK-shaped
+  // `options.redirectTo` body is silently ignored and sends people to Site URL
+  // (the login page), which is exactly the fallback we must avoid here.
+  const res = await authFetch(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ email, options: { redirectTo } }),
+    body: JSON.stringify({ email }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(readErr(data, res.status));

@@ -149,9 +149,10 @@ function recoveryToken() {
   // Supabase returns recovery credentials in a URL fragment, so they are not
   // sent to the server with the page request or stored in browser history.
   const params = new URLSearchParams(location.hash.replace(/^#/, ""));
-  return location.pathname === "/reset-password" && params.get("type") === "recovery"
-    ? params.get("access_token")
-    : null;
+  // If Supabase has not yet allowed /reset-password, it deliberately falls
+  // back to Site URL (usually /). The token still identifies a recovery flow,
+  // so accept it there too and show the password form instead of the login.
+  return params.get("type") === "recovery" ? params.get("access_token") : null;
 }
 
 function showRecoveryPassword(accessToken) {
